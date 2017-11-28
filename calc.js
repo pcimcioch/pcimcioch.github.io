@@ -8,16 +8,24 @@ function compute() {
     const output = document.getElementById('output');
 
     output.value = '';
-    input.users
-        .forEach(user => handleUser(user));
+    input.expenses.forEach(expense => printExpense(expense));
+    println();
+    input.users.forEach(user => handleUser(user));
 
+
+    function printExpense(expense) {
+        const exclude =
+            expense.exclude ?
+            '. ' + expense.exclude + ' nie składa się' :
+            '';
+        println(expense.paidBy + ' zapłacił ' + expense.amount + ' za ' + expense.name + exclude);
+    }
 
     function handleUser(user) {
         let ownedSum = 0.0;
 
         println(user + ':');
-        input.expenses
-            .forEach(expense => ownedSum += handleExpense(expense, user));
+        input.expenses.forEach(expense => ownedSum += handleExpense(expense, user));
         ownedSum -= handleInstallments(input.installments, user);
 
         printTotal(ownedSum, user);
@@ -55,7 +63,7 @@ function compute() {
         println();
     }
 
-    function println(value) {
-        output.value += (value ? value : '') + '\n';
+    function println(value = '') {
+        output.value += value + '\n';
     }
 }
