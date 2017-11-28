@@ -1,0 +1,61 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+
+    <script type="text/javascript" src="yaml.min.js"></script>
+    <script type="text/javascript" src="calc.js"></script>
+</head>
+
+<body>
+
+    <textarea rows="50" cols="50" id="input" onchange="compute()" oninput="compute()">
+users:
+  - Przemek
+  - Dawid
+  - Filip
+  - Mateusz
+  - Norbert
+  - Kacper
+  - Darek
+  - Piotr
+  - Michał
+  - Paweł
+
+expenses:
+  - name: Domek
+    paidBy: Michał
+    amount: 123.00
+
+  - name: Go-karty
+    paidBy: Michał
+    amount: 123.00
+    exclude: [Dawid]
+
+  - name: Escape Room
+    paidBy: Michał
+    amount: 123.00
+    exclude: [Dawid]
+
+  - name: Mięso
+    paidBy: Norbert
+    amount: 123.00
+
+  - name: Prezent
+    paidBy: Norbert
+    amount: 123.00
+
+  - name: Wódka
+    paidBy: Norbert
+    amount: 123.00
+    exclude: [Filip]
+
+installments:
+  - paidBy: Michał
+    amount: 150.00
+
+    </textarea>
+
+    <textarea readonly rows="50" cols="50" id="output"></textarea>
+
+</body>
+</html>
