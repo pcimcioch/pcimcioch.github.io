@@ -23,17 +23,17 @@ users:
 
 expenses:
   - name: Domek
-    paidBy: Michał
-    amount: 123.00
+    paidBy: Filip
+    amount: 500.00
 
   - name: Go-karty
-    paidBy: Michał
-    amount: 123.00
+    paidBy: Filip
+    amount: 500.00
     exclude: [Dawid]
 
   - name: Escape Room
-    paidBy: Michał
-    amount: 123.00
+    paidBy: Filip
+    amount: 339.00
     exclude: [Dawid]
 
   - name: Mięso
@@ -41,8 +41,8 @@ expenses:
     amount: 123.00
 
   - name: Prezent
-    paidBy: Norbert
-    amount: 123.00
+    paidBy: Przemek
+    amount: 159.00
 
   - name: Wódka
     paidBy: Norbert
@@ -50,12 +50,34 @@ expenses:
     exclude: [Filip]
 
 installments:
+  - paidBy: Przemek
+    amount: 150.00
+  - paidBy: Dawid
+    amount: 150.00
+  - paidBy: Filip
+    amount: 150.00
+  - paidBy: Mateusz
+    amount: 150.00
+  - paidBy: Norbert
+    amount: 150.00
+  - paidBy: Kacper
+    amount: 150.00
+  - paidBy: Darek
+    amount: 150.00
+  - paidBy: Piotr
+    amount: 150.00
   - paidBy: Michał
+    amount: 150.00
+  - paidBy: Paweł
     amount: 150.00
 
     </textarea>
 
-    <textarea readonly rows="50" cols="50" id="output"></textarea>
+    <textarea readonly rows="50" cols="70" id="output"></textarea>
+    <br>
+    <h2 id="error" style="color: red;">
+        <strong>Incorrect input!</strong>
+    </h2>
 
 </body>
 </html>

@@ -1,10 +1,22 @@
 /*jshint esversion: 6 */
-window.onload = compute;
+window.onload = function() {
+    'use strict';
+
+    const inputRaw = readCookie('finances_list');
+    if (inputRaw) {
+        document.getElementById('input').value = inputRaw;
+    }
+
+    compute();
+};
 
 function compute() {
     'use strict';
 
-    const input = YAML.parse(document.getElementById('input').value);
+    document.getElementById('error').style.display = 'block';
+
+    const inputRaw = document.getElementById('input').value;
+    const input = YAML.parse(inputRaw);
     const output = document.getElementById('output');
 
     output.value = '';
@@ -12,12 +24,14 @@ function compute() {
     println();
     input.users.forEach(user => handleUser(user));
 
+    document.getElementById('error').style.display = 'none';
+    saveCookie('finances_list', inputRaw);
 
     function printExpense(expense) {
         const exclude =
             expense.exclude ?
-            '. ' + expense.exclude + ' nie składa się' :
-            '';
+                '. ' + expense.exclude + ' nie składa się' :
+                '';
         println(expense.paidBy + ' zapłacił ' + expense.amount + ' za ' + expense.name + exclude);
     }
 
@@ -66,4 +80,32 @@ function compute() {
     function println(value = '') {
         output.value += value + '\n';
     }
+}
+
+function saveCookie(key, value) {
+    'use strict';
+
+    let date = new Date();
+    date.setTime(date.getTime() + (3000 * 24 * 60 * 60 * 1000));
+    document.cookie = key + '=' + encodeURIComponent(value) + '; expires=' + date.toUTCString() + '; path=/';
+}
+
+function readCookie(key) {
+    'use strict';
+
+    const cookieKey = key + '=';
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+        let cookie = cookies[i];
+
+        while (cookie.charAt(0) === ' ') {
+            cookie = cookie.substring(1, cookie.length);
+        }
+
+        if (cookie.indexOf(cookieKey) === 0) {
+            return decodeURIComponent(cookie.substring(cookieKey.length, cookie.length));
+        }
+    }
+
+    return null;
 }
