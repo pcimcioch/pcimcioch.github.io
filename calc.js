@@ -2,7 +2,7 @@
 window.onload = function() {
     'use strict';
 
-    const inputRaw = readCookie('finances_list');
+    const inputRaw = readCookie('input_v2');
     if (inputRaw) {
         document.getElementById('input').value = inputRaw;
     }
@@ -25,7 +25,7 @@ function compute() {
     input.users.forEach(user => handleUser(user));
 
     document.getElementById('error').style.display = 'none';
-    saveCookie('finances_list', inputRaw);
+    saveCookie('input_v2', inputRaw);
 
     function printExpense(expense) {
         const exclude =
@@ -40,32 +40,49 @@ function compute() {
 
         println(user + ':');
         input.expenses.forEach(expense => ownedSum += handleExpense(expense, user));
-        ownedSum -= handleInstallments(input.installments, user);
+        ownedSum -= handlePaidTransactions(input.transactions, user);
+        ownedSum += handleReceivedTransactions(input.transactions, user);
 
         printTotal(ownedSum, user);
     }
 
     function handleExpense(expense, user) {
-        if (expense.exclude && expense.exclude.includes(user)) {
-            return 0.0;
+        let owned = 0.0;
+        const usersCount = input.users.length - (expense.exclude ? expense.exclude.length : 0);
+
+        if (!expense.exclude || !expense.exclude.includes(user)) {
+            owned += expense.amount / usersCount;
         }
 
-        const usersCount = input.users.length - (expense.exclude ? expense.exclude.length : 0);
-        const owned = expense.amount / usersCount - (user === expense.paidBy ? expense.amount : 0);
+        if (user === expense.paidBy) {
+            owned -= expense.amount;
+        }
+
         println('  ' + expense.name + ': \t' + owned.toFixed(2));
 
         return owned;
     }
 
-    function handleInstallments(installments, user) {
+    function handlePaidTransactions(transactions, user) {
         let paid = 0.0;
 
-        installments
-            .filter(installment => installment.paidBy === user)
-            .forEach(installment => paid += installment.amount);
-        println('  Zaliczka: \t' + (-paid).toFixed(2));
+        transactions
+            .filter(transaction => transaction.paidBy === user)
+            .forEach(transaction => paid += transaction.amount);
+        println('  Oddano: \t' + (-paid).toFixed(2));
 
         return paid;
+    }
+
+    function handleReceivedTransactions(transactions, user) {
+        let received = 0.0;
+
+        transactions
+            .filter(transaction => transaction.paidTo === user)
+            .forEach(transaction => received += transaction.amount);
+        println('  Otrzymano: \t' + received.toFixed(2));
+
+        return received;
     }
 
     function printTotal(ownedSum, user) {
