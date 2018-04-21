@@ -103,7 +103,7 @@ var plants = [{
 	dependencies: ['Duketater']
 }];
 
-var available = readCookie('availablePlants') || [];
+var available = JSON.parse(readCookie('availablePlants') || '[]');
 
 function containsAll(set, elements) {
 	for (var i = 0; i < elements.length; i++) {
@@ -137,7 +137,7 @@ function tooglePlant(plant) {
 		available.push(plant);
 	}
 	
-	saveCookie('availablePlants', available)
+	saveCookie('availablePlants', JSON.stringify(available))
 	recalculate();
 }
 
