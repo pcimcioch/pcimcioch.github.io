@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link rel="canonical" href="https://pcimcioch.github.io">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Joemonster Szaffa Viewer</title>
+
+    <link rel="stylesheet" href="css/bootstrap.css">
+    <link rel="stylesheet" href="css/bootstrap-theme.css">
+
+    <!--<link rel="manifest" href="/manifest.json">-->
+</head>
+<body>
+
+    <div class="col-lg-4 col-lg-offset-4 col-md-6 col-md-offset-3 col-sm-12">
+
+        <!-- Status View Table -->
+        <div class="panel panel-primary">
+            <div class="panel-body">
+                <table class="table table-condensed">
+                    <tbody>
+                        <tr>
+                            <th>Token</th>
+                            <td id="token">Unknown</td>
+                        </tr>
+                        <tr>
+                            <th>Last Id</th>
+                            <td id="last-id">Unknown</td>
+                        </tr>
+                        <tr>
+                            <th>New images</th>
+                            <td id="new-images">Unknown</td>
+                        </tr>
+                        <tr>
+                            <th>Status</th>
+                            <td id="status">Unknown</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Configuration Table -->
+        <div class="panel panel-default">
+            <div class="panel-heading" data-toggle="collapse" data-target="#settings-panel" role="button">
+                <span class="glyphicon glyphicon-cog"></span>
+                Settings
+            </div>
+            <div class=" panel-collapse collapse" id="settings-panel">
+                <div class="panel-body">
+                    <div class="form-group">
+                        <label for="token-input">Token</label>
+                        <input class="form-control" id="token-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="last-id-input">Last Id</label>
+                        <input class="form-control" id="last-id-input">
+                    </div>
+                    <div class="btn btn-block btn-sm btn-primary form-control" id="save-settings">Save</div>
+                </div>
+                <!--TODO Move next to input field-->
+                <div class="panel-footer">
+                    <button class="btn btn-sm btn-warning" id="regenerate-token">
+                        <span id="regenerate-token-status" class="glyphicon glyphicon-refresh"></span>
+                        Regenerate Token
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/jquery.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
