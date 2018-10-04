@@ -21,20 +21,24 @@
                 <table class="table table-condensed">
                     <tbody>
                         <tr>
-                            <th>Token</th>
-                            <td id="token">Unknown</td>
+                            <th class="col-md-5">Token</th>
+                            <td id="token" class="col-md-6">Unknown</td>
+                            <td class="col-md-1"></td>
                         </tr>
                         <tr>
                             <th>Last Id</th>
                             <td id="last-id">Unknown</td>
+                            <td><span id="last-id-status" class="glyphicon glyphicon-transfer text-muted"></span></td>
                         </tr>
                         <tr>
                             <th>New images</th>
                             <td id="new-images">Unknown</td>
+                            <td></td>
                         </tr>
                         <tr>
                             <th>Status</th>
-                            <td id="status">Unknown</td>
+                            <th id="status" class="text-muted">Starting</th>
+                            <td><span id="status-status" class="glyphicon glyphicon-time text-muted"></span></td>
                         </tr>
                     </tbody>
                 </table>
@@ -49,22 +53,25 @@
             </div>
             <div class=" panel-collapse collapse" id="settings-panel">
                 <div class="panel-body">
+                    <!-- Token input -->
                     <div class="form-group">
                         <label for="token-input">Token</label>
-                        <input class="form-control" id="token-input">
+                        <div class="input-group">
+                            <input class="form-control" id="token-input">
+                            <span class="input-group-btn">
+                                <button class="btn btn-warning" id="regenerate-token">
+                                    <span id="regenerate-token-status" class="glyphicon glyphicon-refresh"></span>
+                                    Regenerate
+                                </button>
+                            </span>
+                        </div>
                     </div>
+                    <!-- Last Id input -->
                     <div class="form-group">
                         <label for="last-id-input">Last Id</label>
                         <input class="form-control" id="last-id-input">
                     </div>
                     <div class="btn btn-block btn-sm btn-primary form-control" id="save-settings">Save</div>
-                </div>
-                <!--TODO Move next to input field-->
-                <div class="panel-footer">
-                    <button class="btn btn-sm btn-warning" id="regenerate-token">
-                        <span id="regenerate-token-status" class="glyphicon glyphicon-refresh"></span>
-                        Regenerate Token
-                    </button>
                 </div>
             </div>
         </div>

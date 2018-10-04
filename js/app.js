@@ -1,179 +1,281 @@
 /*jshint esversion: 6 */
 
-// TODO wrap in jquery load
-
-function Data() {
+jQuery(document).ready(function($) {
   'use strict';
-  const self = this;
 
-  const constructor = function() {
-    self.status = 'Starting';
-    loadData();
+  function ExternalData() {
+    const API_URL = 'https://api.keyvalue.xyz';
+    const KEY = 'lastId';
 
-    refreshStatusView();
-  };
+    // ------------------- Methods -------------------
+    this.generateToken = function(success, failure) {
+      $.post(API_URL + '/new/' + KEY)
+        .done(function(data) {
+          const token = data.substring(API_URL.length + 1, data.length - KEY.length - 2);
+          if (success) {
+            success(token);
+          }
+        })
+        .fail(failure);
+    };
 
-  // ------------------- Methods -------------------
-  this.setToken = function(token) {
-    self.token = token;
-    localStorage.setItem('token', token);
-    refreshToken();
-  };
+    this.saveValue = function(token, value, success, failure) {
+      $.post(API_URL + '/' + token + '/' + KEY + '/' + value)
+        .done(success)
+        .fail(failure);
+    };
 
-  this.setLastId = function(lastId) {
-    self.lastId = lastId;
-    localStorage.setItem('lastId', lastId);
-    refreshLastId();
-  };
+    this.readValue = function(token, success, failure) {
+      $.get(API_URL + '/' + token + '/' + KEY)
+        .done(function(data) {
+          if (success) {
+            success(parseInt(data));
+          }
+        })
+        .fail(failure);
+    };
+  }
 
-  this.isLoaded = function() {
-    return self.lastId && self.token;
-  };
+  function Data() {
+    const self = this;
 
-  // TODO Move to ExternalData class. Token should not be automatically saved
-  this.regenerateToken = function() {
-    return $.post('https://api.keyvalue.xyz/new/lastId', function(data) {
-      // TODO extract token from data
-      self.setToken(data);
-    });
-  };
+    const constructor = function() {
+      loadData();
 
-  // ------------------- Internal -------------------
-  const loadData = function() {
-    self.token = localStorage.getItem('token');
-    self.lastId = localStorage.getItem('lastId');
-    self.data = localStorage.getItem('data') || [];
-  };
+      refreshToken();
+      refreshLastId();
+      refreshNewImages();
+    };
 
-  // ------------------- View -------------------
-  const refreshToken = function() {
-    $('#token').text(self.token);
-  };
+    // ------------------- Methods -------------------
+    this.setToken = function(token) {
+      self.token = token;
+      localStorage.setItem('token', token);
+      refreshToken();
+    };
 
-  const refreshLastId = function() {
-    $('#last-id').text(self.lastId);
-  };
+    this.setLastId = function(lastId) {
+      self.lastId = lastId ? parseInt(lastId) : null;
+      localStorage.setItem('lastId', self.lastId);
+      refreshLastId();
+    };
 
-  const refreshNewImages = function() {
-    $('#new-images').text(self.data.length);
-  };
+    this.setData = function(data) {
+      self.data = data;
+      localStorage.setItem('data', JSON.stringify(self.data));
+      refreshNewImages();
+    };
 
-  const refreshStatus = function() {
-    $('#status').text(self.status);
-  };
+    this.isLoaded = function() {
+      return self.lastId && self.token;
+    };
 
-  const refreshStatusView = function() {
-    refreshToken();
-    refreshLastId();
-    refreshNewImages();
-    refreshStatus();
-  };
+    this.setStatusBusy = function(status) {
+      setStatus(status, 'text-muted', 'glyphicon glyphicon-time text-muted');
+    };
 
-  //------------------- Constructor -------------------
-  constructor();
-}
+    this.setStatusFinished = function(status) {
+      setStatus(status, 'text-success', 'glyphicon glyphicon-ok text-success');
+    };
 
-function App(data) {
-  'use strict';
-  const self = this;
+    this.setLastIdStatusBusy = function() {
+      setLastIdStatus('glyphicon glyphicon-transfer text-muted');
+    };
 
-  const constructor = function(data) {
-    self.data = data;
-    self.loaded = false;
-  };
+    this.setLastIdStatusUpToDate = function() {
+      setLastIdStatus('lastId up to date', 'glyphicon glyphicon-ok text-success');
+    };
 
-  // ------------------- Methods -------------------
-  this.start = function() {
-    if (self.data.isLoaded() && !self.loaded) {
-      self.loaded = true;
-      // TODO start logic
-    }
-  };
+    this.setLastIdStatusUpdated = function() {
+      setLastIdStatus('Newer lastId downloaded', 'glyphicon glyphicon-download text-success');
+    };
 
-  //------------------- Constructor -------------------
-  constructor(data);
-}
+    this.setLastIdStatusSaved = function() {
+      setLastIdStatus('Saved newer lastId', 'glyphicon glyphicon-floppy-saved text-success');
+    };
 
-function SettingsView(data, app) {
-  'use strict';
-  const self = this;
+    this.setLastIdStatusNotLoaded = function() {
+      setLastIdStatus('Unable to load lastId', 'glyphicon glyphicon-download text-danger');
+    };
 
-  const constructor = function(data, app) {
-    self.data = data;
-    self.app = app;
-    self.loaded = false;
+    this.setLastIdStatusNotSaved = function() {
+      setLastIdStatus('Unable to save newer lastId', 'glyphicon glyphicon-floppy-remove text-danger');
+    };
 
-    $('#save-settings').click(function() {
-      applySettings();
-      clearInputs();
-      hideSettings();
-      self.app.start();
-    });
+    // ------------------- Internal -------------------
+    const loadData = function() {
+      self.token = localStorage.getItem('token');
+      self.lastId = parseInt(localStorage.getItem('lastId')) || null;
+      self.data = JSON.parse(localStorage.getItem('data')) || [];
+    };
 
-    $('#regenerate-token').click(function() {
-      regenerateToken();
-    });
+    // ------------------- View -------------------
+    const refreshToken = function() {
+      $('#token').text(self.token);
+    };
 
-    if (!self.data.isLoaded()) {
-      showSettings();
-    }
-  };
+    const refreshLastId = function() {
+      $('#last-id').text(self.lastId);
+    };
 
-  // ------------------- Internal -------------------
-  const applySettings = function() {
-    self.data.setToken($('#token-input').val());
-    self.data.setLastId($('#last-id-input').val());
-  };
+    const refreshNewImages = function() {
+      $('#new-images').text(self.data.length);
+    };
 
-  // TODO button for cache??
-  const regenerateToken = function() {
-    markTokenRegenerationStart();
+    const setStatus = function(status, textClass, glyphClass) {
+      $('#status').removeClass().addClass(textClass).text(status);
+      $('#status-status').removeClass().addClass(glyphClass);
+    };
 
-    self.data.regenerateToken()
-      .done(function() {
-        $('#token-input').val(self.data.token);
+    const setLastIdStatus = function(status, glyphClass) {
+      $('#last-id-status').removeClass().addClass(glyphClass).prop('title', status);
+    };
+
+    //------------------- Constructor -------------------
+    constructor();
+  }
+
+  function App(data, externalData) {
+    const self = this;
+
+    const constructor = function(data, externalData) {
+      self.data = data;
+      self.externalData = externalData;
+      self.loading = false;
+    };
+
+    // ------------------- Methods -------------------
+    this.start = function() {
+      if (self.data.isLoaded() && !self.loading) {
+        self.loading = true;
+        self.data.setStatusBusy('Getting lastId');
+        self.data.setLastIdStatusBusy();
+
+        self.externalData.readValue(self.data.token, handleExternalLastIdGot, handleExternalLastIdGetFailed);
+      }
+    };
+
+    // ------------------- Internal -------------------
+    const handleExternalLastIdGot = function(externalLastId) {
+      if (externalLastId > self.data.lastId) {
+        self.data.setLastId(externalLastId);
+        self.data.setLastIdStatusUpdated();
+        lastIdUpdated();
+      } else if (externalLastId === self.data.lastId) {
+        self.data.setLastIdStatusUpToDate();
+        lastIdUpdated();
+      } else {
+        self.data.setStatusBusy('Saving lastId');
+        self.externalData.saveValue(self.data.token, self.data.lastId, handleExternalLastIdSaved, handleExternalLastIdSaveFailed);
+      }
+    };
+
+    const handleExternalLastIdSaved = function() {
+      self.data.setLastIdStatusSaved();
+      lastIdUpdated();
+    };
+
+    const handleExternalLastIdSaveFailed = function() {
+      self.data.setLastIdStatusNotSaved();
+      lastIdUpdated();
+    };
+
+    const handleExternalLastIdGetFailed = function() {
+      self.data.setLastIdStatusNotLoaded();
+      lastIdUpdated();
+    };
+
+    const lastIdUpdated = function() {
+      // TODO implement
+      self.loading = false;
+      self.data.setStatusFinished('Loaded');
+    };
+
+    //------------------- Constructor -------------------
+    constructor(data, externalData);
+  }
+
+  function SettingsView(data, externalData, app) {
+    const self = this;
+
+    const constructor = function(data, externalData, app) {
+      self.data = data;
+      self.externalData = externalData;
+      self.app = app;
+      self.loaded = false;
+
+      $('#save-settings').click(function() {
+        applySettings();
+        clearInputs();
+        hideSettings();
+        self.app.start();
+      });
+
+      $('#regenerate-token').click(function() {
+        regenerateToken();
+      });
+
+      if (!self.data.isLoaded()) {
+        showSettings();
+      }
+    };
+
+    // ------------------- Internal -------------------
+    const applySettings = function() {
+      self.data.setToken($('#token-input').val());
+      self.data.setLastId($('#last-id-input').val());
+    };
+
+    const regenerateToken = function() {
+      markTokenRegenerationStart();
+
+      self.externalData.generateToken(function(token) {
+        $('#token-input').val(token);
         markTokenRegenerationSuccess();
-      })
-      .fail(function() {
+      }, function() {
         markTokenRegenerationFailure();
       });
-  };
+    };
 
-  // ------------------- View -------------------
-  const markTokenRegenerationStart = function() {
-    $('#regenerate-token').prop('disabled', true);
-    $('#regenerate-token-status').removeClass().addClass('glyphicon glyphicon-time');
-  };
+    // ------------------- View -------------------
+    const markTokenRegenerationStart = function() {
+      $('#regenerate-token').prop('disabled', true);
+      $('#regenerate-token-status').removeClass().addClass('glyphicon glyphicon-time');
+    };
 
-  const markTokenRegenerationSuccess = function() {
-    $('#regenerate-token-status').removeClass().addClass('glyphicon glyphicon-ok');
-    $('#regenerate-token').prop('disabled', false);
-  };
+    const markTokenRegenerationSuccess = function() {
+      $('#regenerate-token-status').removeClass().addClass('glyphicon glyphicon-ok');
+      $('#regenerate-token').prop('disabled', false);
+    };
 
-  const markTokenRegenerationFailure = function() {
-    $('#regenerate-token-status').removeClass().addClass('glyphicon glyphicon-alert');
-    $('#regenerate-token').prop('disabled', false);
-  };
+    const markTokenRegenerationFailure = function() {
+      $('#regenerate-token-status').removeClass().addClass('glyphicon glyphicon-alert');
+      $('#regenerate-token').prop('disabled', false);
+    };
 
-  const clearInputs = function() {
-    $('#token-input').val('');
-    $('#last-id-input').val('');
-  };
+    const clearInputs = function() {
+      $('#token-input').val('');
+      $('#last-id-input').val('');
+    };
 
-  const hideSettings = function() {
-    $('#settings-panel').collapse('hide');
-  };
+    const hideSettings = function() {
+      $('#settings-panel').collapse('hide');
+    };
 
-  const showSettings = function() {
-    $('#settings-panel').collapse('show');
-  };
+    const showSettings = function() {
+      $('#settings-panel').collapse('show');
+    };
 
-  //------------------- Constructor -------------------
-  constructor(data, app);
-}
+    //------------------- Constructor -------------------
+    constructor(data, externalData, app);
+  }
 
-const data = new Data();
-const app = new App(data);
-const settingsView = new SettingsView(data, app);
 
-app.start();
+  const data = new Data();
+  const externalData = new ExternalData();
+  const app = new App(data, externalData);
+  const settingsView = new SettingsView(data, externalData, app);
+
+  app.start();
+
+});
