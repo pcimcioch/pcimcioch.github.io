@@ -28,12 +28,12 @@
                         <tr>
                             <th>Last Id</th>
                             <td id="last-id">Unknown</td>
-                            <td><span id="last-id-status" class="glyphicon glyphicon-transfer text-muted"></span></td>
+                            <td><span id="last-id-status" class="glyphicon glyphicon-time text-muted" title="Waiting to synchronize"></span></td>
                         </tr>
                         <tr>
                             <th>New images</th>
                             <td id="new-images">Unknown</td>
-                            <td></td>
+                            <td><span id="new-images-status" class="glyphicon glyphicon-time text-muted" title="Waiting to synchronize"></span></td>
                         </tr>
                         <tr>
                             <th>Status</th>
@@ -47,7 +47,7 @@
 
         <!-- Configuration Table -->
         <div class="panel panel-default">
-            <div class="panel-heading" data-toggle="collapse" data-target="#settings-panel" role="button">
+            <div class="panel-heading" data-toggle="collapse" data-target="#settings-panel" role="button" id="settings-heading">
                 <span class="glyphicon glyphicon-cog"></span>
                 Settings
             </div>
@@ -66,10 +66,19 @@
                             </span>
                         </div>
                     </div>
+
                     <!-- Last Id input -->
                     <div class="form-group">
                         <label for="last-id-input">Last Id</label>
-                        <input class="form-control" id="last-id-input">
+                        <div class="input-group">
+                            <input class="form-control" id="last-id-input">
+                            <span class="input-group-btn">
+                                <button class="btn btn-warning" id="regenerate-last-id">
+                                    <span id="regenerate-last-id-status" class="glyphicon glyphicon-refresh"></span>
+                                    Get Latest
+                                </button>
+                            </span>
+                        </div>
                     </div>
                     <div class="btn btn-block btn-sm btn-primary form-control" id="save-settings">Save</div>
                 </div>
