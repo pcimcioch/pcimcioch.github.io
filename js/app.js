@@ -32,50 +32,7 @@ jQuery(document).ready(function($) {
     };
   }
 
-  function Scraper() {
-    const self = this;
-
-    const CORS_URL = 'https://cors.io/?';
-    const API_URL = 'https://joemonster.org/szaffa/najnowsze_fotki/strona/';
-    const ELEM_REGEX = /href='\/p\/([0-9]+)\/[\s\S]*?\/upload\/(.*?)\/s_(.*?)'/g;
-    const IMG_SRC_URL = "https://vader.joemonster.org/upload/";
-
-    // ------------------- Methods -------------------
-    this.getLatestId = function(success, failure) {
-      self.getElementsFromPage(1, function(elements) {
-        success(elements[0].id);
-      }, failure);
-    };
-
-    this.getElementsFromPage = function(page, success, failure) {
-      $.get(CORS_URL + API_URL + page)
-        .done(function(html) {
-          success(extractElements(html));
-        })
-        .fail(failure);
-    };
-
-    // ------------------- Internal -------------------\
-    const extractElements = function(html) {
-      const elements = [];
-
-      let match = ELEM_REGEX.exec(html);
-      while (match) {
-        const id = match[1];
-        const category = match[2];
-        const filename = match[3];
-        elements.push({id: parseInt(id), url: (IMG_SRC_URL + category + '/' + removeExtension(filename))});
-        match = ELEM_REGEX.exec(html);
-      }
-
-      return elements;
-    };
-
-    const removeExtension = function(filename) {
-      return filename.replace(/\.[^/.]+$/, "");
-    };
-  }
-
+  // TODO maybe remove status class and spread it's method to usage points?
   function Status() {
     // ------------------- Methods -------------------
     this.setStatusBusy = function(status) {
@@ -84,10 +41,6 @@ jQuery(document).ready(function($) {
 
     this.setStatusFinished = function(status) {
       setStatus(status, 'text-success', 'glyphicon glyphicon-ok text-success');
-    };
-
-    this.setStatusFinishedWithError = function(status) {
-      setStatus(status, 'text-danger', 'glyphicon glyphicon-warning text-success');
     };
 
     this.setLastIdStatusBusy = function() {
@@ -310,6 +263,88 @@ jQuery(document).ready(function($) {
     constructor(data, externalData, status);
   }
 
+  function Scraper(data, status) {
+    const self = this;
+
+    const CORS_URL = 'https://cors.io/?';
+    const API_URL = 'https://joemonster.org/szaffa/najnowsze_fotki/strona/';
+    const ELEM_REGEX = /href='\/p\/([0-9]+)\/[\s\S]*?\/upload\/(.*?)\/s_(.*?)'/g;
+    const IMG_SRC_URL = "https://vader.joemonster.org/upload/";
+
+    const constructor = function(data, status) {
+      self.data = data;
+      self.status = status;
+    };
+
+    // ------------------- Methods -------------------
+    this.getLatestId = function(success, failure) {
+      getElementsFromPage(1, function(elements) {
+        success(elements[0].id);
+      }, failure);
+    };
+
+    this.scrapNewElements = function(done) {
+      self.status.setNewImagesStatusBusy();
+      const lastElementId = self.data.elements.length > 0 ? self.data.elements[self.data.elements.length - 1].id : self.data.lastId;
+      scrapPage(1, [], lastElementId, scrappingFinished, done);
+    };
+
+    // ------------------- Internal -------------------
+    const scrapPage = function(page, elements, lastElementId, finished, done) {
+      getElementsFromPage(page, function(scrappedElements) {
+        elements = scrappedElements.reverse().concat(elements);
+        if (elements[0].id <= lastElementId) {
+          finished(elements, done);
+        } else {
+          scrapPage(page + 1, elements, lastElementId, finished, done);
+        }
+      }, function() {
+        handleScrappingFailed(done);
+      });
+    };
+
+    const handleScrappingFailed = function(done) {
+      self.status.setNewImagesStatusNotUpdated();
+      done();
+    };
+
+    const scrappingFinished = function(elements, done) {
+      self.data.addElements(elements);
+      self.status.setNewImagesStatusUpdated();
+      done();
+    };
+
+    const getElementsFromPage = function(page, success, failure) {
+      $.get(CORS_URL + API_URL + page)
+        .done(function(html) {
+          success(extractElements(html));
+        })
+        .fail(failure);
+    };
+
+    const extractElements = function(html) {
+      const elements = [];
+
+      let match = ELEM_REGEX.exec(html);
+      while (match) {
+        const id = match[1];
+        const category = match[2];
+        const filename = match[3];
+        elements.push({id: parseInt(id), url: (IMG_SRC_URL + category + '/' + removeExtension(filename))});
+        match = ELEM_REGEX.exec(html);
+      }
+
+      return elements;
+    };
+
+    const removeExtension = function(filename) {
+      return filename.replace(/\.[^/.]+$/, "");
+    };
+
+    //------------------- Constructor -------------------
+    constructor(data, status);
+  }
+
   function Images(data) {
     const self = this;
 
@@ -341,8 +376,11 @@ jQuery(document).ready(function($) {
     //------------------- Internal -------------------
     const clearCurrentImages = function() {
       $('#images').html('');
-      self.data.removeElements(self.displayedElements);
-      self.displayedElements = [];
+      if (self.displayedElements.length > 0) {
+        self.data.removeElements(self.displayedElements);
+        // TODO lastId synchronize here
+        self.displayedElements = [];
+      }
     };
 
     const appendElement = function(element) {
@@ -408,33 +446,10 @@ jQuery(document).ready(function($) {
     // ------------------- Internal -------------------
     const lastIdUpdated = function() {
       self.status.setStatusBusy('Scrapping images');
-
-      self.status.setNewImagesStatusBusy();
-      const lastElementId = self.data.elements.length > 0 ? self.data.elements[self.data.elements.length - 1].id : self.data.lastId;
-      scrapPage(1, [], lastElementId, scrappingFinished);
+      self.scraper.scrapNewElements(scrappingFinished);
     };
 
-    const scrapPage = function(page, elements, lastElementId, success) {
-      self.scraper.getElementsFromPage(page, function(scrappedElements) {
-        elements = scrappedElements.reverse().concat(elements);
-        if (elements[0].id <= lastElementId) {
-          success(elements);
-        } else {
-          scrapPage(page + 1, elements, lastElementId, success);
-        }
-      }, handleScrappingFailed);
-    };
-
-    const handleScrappingFailed = function() {
-      self.status.setNewImagesStatusNotUpdated();
-      self.status.setStatusFinishedWithError('Scrapping Failed');
-      finish();
-    };
-
-    const scrappingFinished = function(elements) {
-      self.data.addElements(elements);
-      self.status.setNewImagesStatusUpdated();
-
+    const scrappingFinished = function() {
       self.status.setStatusFinished('Loaded');
       finish();
     };
@@ -533,11 +548,11 @@ jQuery(document).ready(function($) {
   }
 
   const externalData = new ExternalData();
-  const scraper = new Scraper();
   const status = new Status();
   const data = new Data();
   const images = new Images(data);
   const lastIdSync = new LastIdSync(data, externalData, status);
+  const scraper = new Scraper(data, status);
   const app = new App(data, lastIdSync, scraper, images, status);
   const settingsView = new SettingsView(data, externalData, scraper, app);
 
