@@ -107,7 +107,7 @@ jQuery(document).ready(function($) {
 
     // ------------------- Methods -------------------
     this.getLatestId = function(success, failure) {
-      self.getPage(1, function(elements) {
+      self.getElementsFromPage(1, function(elements) {
         success(elements[0].id);
       }, failure);
     };
@@ -153,10 +153,10 @@ jQuery(document).ready(function($) {
     };
 
     // ------------------- Methods -------------------
-    this.setToken = function(token) {
-      self.token = token;
-      localStorage.setItem('token', token);
-      refreshToken();
+    this.setup = function(token, lastId) {
+      self.setLastId(lastId);
+      setToken(token);
+      setElements([]);
     };
 
     this.setLastId = function(lastId) {
@@ -169,29 +169,40 @@ jQuery(document).ready(function($) {
       if (self.elements.length === 0) {
         return;
       }
-      if (self.elements[0].id !== self.lastId) {
-        setElements([]);
-        return;
-      }
 
       const prunedElements = jQuery.grep(self.elements, function(elem) {
-        return elem.id >= self.lastId;
+        return elem.id > self.lastId;
       });
       setElements(prunedElements);
     };
 
     this.addElements = function(elementsToAdd) {
+      if (elementsToAdd.length === 0) {
+        return;
+      }
+
       if (self.elements.length > 0) {
         elementsToAdd = jQuery.grep(elementsToAdd, function(elem) {
           return elem.id > self.elements[self.elements.length - 1].id;
         });
       } else {
         elementsToAdd = jQuery.grep(elementsToAdd, function(elem) {
-          return elem.id >= self.lastId;
+          return elem.id > self.lastId;
         });
       }
 
       setElements(self.elements.concat(elementsToAdd));
+    };
+
+    this.removeElements = function(elementsToRemove) {
+      if (elementsToRemove.length === 0) {
+        return;
+      }
+      const idsToRemove = elementsToRemove.map(elem => elem.id);
+      const newElements = self.elements.filter(elem => idsToRemove.indexOf(elem.id) === -1);
+
+      self.setLastId(idsToRemove[idsToRemove.length - 1]);
+      setElements(newElements);
     };
 
     this.isLoaded = function() {
@@ -203,6 +214,12 @@ jQuery(document).ready(function($) {
       self.token = localStorage.getItem('token');
       self.lastId = parseInt(localStorage.getItem('lastId')) || null;
       self.elements = JSON.parse(localStorage.getItem('elements')) || [];
+    };
+
+    const setToken = function(token) {
+      self.token = token;
+      localStorage.setItem('token', token);
+      refreshToken();
     };
 
     const setElements = function(elements) {
@@ -228,13 +245,14 @@ jQuery(document).ready(function($) {
     constructor();
   }
 
-  function App(data, externalData, scraper, status) {
+  function App(data, externalData, scraper, images, status) {
     const self = this;
 
-    const constructor = function(data, externalData, scraper, status) {
+    const constructor = function(data, externalData, scraper, images, status) {
       self.data = data;
       self.externalData = externalData;
       self.scraper = scraper;
+      self.images = images;
       self.status = status;
       self.loading = false;
     };
@@ -317,10 +335,11 @@ jQuery(document).ready(function($) {
 
     const finish = function() {
       self.loading = false;
+      self.images.showNextBatch();
     };
 
     //------------------- Constructor -------------------
-    constructor(data, externalData, scraper, status);
+    constructor(data, externalData, scraper, images, status);
   }
 
   function SettingsView(data, externalData, scraper, app) {
@@ -333,30 +352,26 @@ jQuery(document).ready(function($) {
       self.app = app;
       self.loaded = false;
 
-      $('#save-settings').click(function() {
-        applySettings();
-        self.app.start();
-      });
-
-      $('#settings-heading').click(function() {
-        setupInputs();
-        markRegenerationReady('#regenerate-token', '#regenerate-token-status');
-        markRegenerationReady('#regenerate-last-id', '#regenerate-last-id-status');
-      });
-
-      $('#regenerate-token').click(function() {
-        regenerateToken();
-      });
-
-      $('#regenerate-last-id').click(function() {
-        regenerateLastId();
-      });
+      $('#save-settings').on('click', saveSettings);
+      $('#settings-heading').on('click', setupSettings);
+      $('#regenerate-token').on('click', regenerateToken);
+      $('#regenerate-last-id').on('click', regenerateLastId);
     };
 
     // ------------------- Internal -------------------
+    const saveSettings = function() {
+      applySettings();
+      self.app.start();
+    };
+
     const applySettings = function() {
-      self.data.setToken($('#token-input').val());
-      self.data.setLastId($('#last-id-input').val());
+      self.data.setup($('#token-input').val(), $('#last-id-input').val());
+    };
+
+    const setupSettings = function() {
+      setupInputs();
+      markRegenerationReady('#regenerate-token', '#regenerate-token-status');
+      markRegenerationReady('#regenerate-last-id', '#regenerate-last-id-status');
     };
 
     const regenerateToken = function() {
@@ -411,12 +426,86 @@ jQuery(document).ready(function($) {
     constructor(data, externalData, scraper, app);
   }
 
+  function Images(data) {
+    const self = this;
+
+    const FETCH_SIZE = 10;
+    const IMG_URL = 'http://www.joemonster.org/szaffa/';
+
+    const constructor = function(data) {
+      self.data = data;
+      self.displayedElements = [];
+
+      $('#fetch-next')
+        .on('click', self.showNextBatch)
+        .hide();
+    };
+
+    //------------------- Methods -------------------
+    this.showNextBatch = function() {
+      clearCurrentImages();
+      self.data.elements.slice(0, FETCH_SIZE).forEach(appendElement);
+
+      if (self.displayedElements.length === 0) {
+        $('#fetch-next').hide();
+      } else {
+        $('#fetch-next').show();
+        $('#images')[0].scrollIntoView(true);
+      }
+    };
+
+    //------------------- Internal -------------------
+    const clearCurrentImages = function() {
+      $('#images').html('');
+      self.data.removeElements(self.displayedElements);
+      self.displayedElements = [];
+    };
+
+    const appendElement = function(element) {
+      const img = $('<img>', {src: element.url + '.jpg'})
+        .on('error', imageErrorHandler);
+      const link = $('<h4/>').append(
+        $('<strong/>').append(
+          $('<a/>', {
+            href: IMG_URL + element.id,
+            target: '_blank',
+            text: element.id
+          })
+        )
+      );
+      const panel = $('<div/>', {class: 'panel panel-default'})
+        .append($('<div/>', {class: 'panel-heading'}).append(link))
+        .append($('<div/>', {class: 'panel-body'}).append(img));
+
+      $('#images').append(panel).append($('<br>'));
+
+      self.displayedElements.push(element);
+    };
+
+    const imageErrorHandler = function(event) {
+      const img = event.target;
+
+      const oldSrc = img.src;
+      let newSrc = oldSrc.replace('.png', '.gif');
+      newSrc = newSrc.replace('.jpg', '.png');
+
+      if (newSrc !== oldSrc) {
+        img.src = newSrc;
+      }
+
+      return true;
+    };
+
+    //------------------- Constructor -------------------
+    constructor(data);
+  }
 
   const data = new Data();
   const externalData = new ExternalData();
-  const status = new Status();
   const scraper = new Scraper();
-  const app = new App(data, externalData, scraper, status);
+  const status = new Status();
+  const images = new Images(data);
+  const app = new App(data, externalData, scraper, images, status);
   const settingsView = new SettingsView(data, externalData, scraper, app);
 
   app.start();

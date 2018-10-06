@@ -1,0 +1,11 @@
+.images-container img {
+    max-width: 100%;
+}
+
+.images-container .panel {
+    display: inline-block;
+}
+
+.images-container h4 {
+    margin: 0;
+}
