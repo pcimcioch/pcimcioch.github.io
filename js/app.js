@@ -32,6 +32,50 @@ jQuery(document).ready(function($) {
     };
   }
 
+  function Scraper() {
+    const self = this;
+
+    const CORS_URL = 'https://cors.io/?';
+    const API_URL = 'https://joemonster.org/szaffa/najnowsze_fotki/strona/';
+    const ELEM_REGEX = /href='\/p\/([0-9]+)\/[\s\S]*?\/upload\/(.*?)\/s_(.*?)'/g;
+    const IMG_SRC_URL = "https://vader.joemonster.org/upload/";
+
+    // ------------------- Methods -------------------
+    this.getLatestId = function(success, failure) {
+      self.getElementsFromPage(1, function(elements) {
+        success(elements[0].id);
+      }, failure);
+    };
+
+    this.getElementsFromPage = function(page, success, failure) {
+      $.get(CORS_URL + API_URL + page)
+        .done(function(html) {
+          success(extractElements(html));
+        })
+        .fail(failure);
+    };
+
+    // ------------------- Internal -------------------\
+    const extractElements = function(html) {
+      const elements = [];
+
+      let match = ELEM_REGEX.exec(html);
+      while (match) {
+        const id = match[1];
+        const category = match[2];
+        const filename = match[3];
+        elements.push({id: parseInt(id), url: (IMG_SRC_URL + category + '/' + removeExtension(filename))});
+        match = ELEM_REGEX.exec(html);
+      }
+
+      return elements;
+    };
+
+    const removeExtension = function(filename) {
+      return filename.replace(/\.[^/.]+$/, "");
+    };
+  }
+
   function Status() {
     // ------------------- Methods -------------------
     this.setStatusBusy = function(status) {
@@ -97,50 +141,6 @@ jQuery(document).ready(function($) {
     };
   }
 
-  function Scraper() {
-    const self = this;
-
-    const CORS_URL = 'https://cors.io/?';
-    const API_URL = 'https://joemonster.org/szaffa/najnowsze_fotki/strona/';
-    const ELEM_REGEX = /href='\/p\/([0-9]+)\/[\s\S]*?\/upload\/(.*?)\/s_(.*?)'/g;
-    const IMG_SRC_URL = "https://vader.joemonster.org/upload/";
-
-    // ------------------- Methods -------------------
-    this.getLatestId = function(success, failure) {
-      self.getElementsFromPage(1, function(elements) {
-        success(elements[0].id);
-      }, failure);
-    };
-
-    this.getElementsFromPage = function(page, success, failure) {
-      $.get(CORS_URL + API_URL + page)
-        .done(function(html) {
-          success(extractElements(html));
-        })
-        .fail(failure);
-    };
-
-    // ------------------- Internal -------------------\
-    const extractElements = function(html) {
-      const elements = [];
-
-      let match = ELEM_REGEX.exec(html);
-      while (match) {
-        const id = match[1];
-        const category = match[2];
-        const filename = match[3];
-        elements.push({id: parseInt(id), url: (IMG_SRC_URL + category + '/' + removeExtension(filename))});
-        match = ELEM_REGEX.exec(html);
-      }
-
-      return elements;
-    };
-
-    const removeExtension = function(filename) {
-      return filename.replace(/\.[^/.]+$/, "");
-    };
-  }
-
   function Data() {
     const self = this;
 
@@ -154,26 +154,14 @@ jQuery(document).ready(function($) {
 
     // ------------------- Methods -------------------
     this.setup = function(token, lastId) {
-      self.setLastId(lastId);
+      setLastId(lastId);
       setToken(token);
       setElements([]);
     };
 
-    this.setLastId = function(lastId) {
-      self.lastId = lastId ? parseInt(lastId) : null;
-      localStorage.setItem('lastId', self.lastId);
-      refreshLastId();
-    };
-
-    this.pruneElements = function() {
-      if (self.elements.length === 0) {
-        return;
-      }
-
-      const prunedElements = jQuery.grep(self.elements, function(elem) {
-        return elem.id > self.lastId;
-      });
-      setElements(prunedElements);
+    this.updateLastId = function(lastId) {
+      setLastId(lastId);
+      pruneElements();
     };
 
     this.addElements = function(elementsToAdd) {
@@ -201,7 +189,11 @@ jQuery(document).ready(function($) {
       const idsToRemove = elementsToRemove.map(elem => elem.id);
       const newElements = self.elements.filter(elem => idsToRemove.indexOf(elem.id) === -1);
 
-      self.setLastId(idsToRemove[idsToRemove.length - 1]);
+      const lastIdFromRemovedElements = idsToRemove[idsToRemove.length - 1];
+      if (lastIdFromRemovedElements > self.lastId) {
+        setLastId(lastIdFromRemovedElements);
+      }
+
       setElements(newElements);
     };
 
@@ -220,6 +212,23 @@ jQuery(document).ready(function($) {
       self.token = token;
       localStorage.setItem('token', token);
       refreshToken();
+    };
+
+    const setLastId = function(lastId) {
+      self.lastId = lastId ? parseInt(lastId) : null;
+      localStorage.setItem('lastId', self.lastId);
+      refreshLastId();
+    };
+
+    const pruneElements = function() {
+      if (self.elements.length === 0) {
+        return;
+      }
+
+      const prunedElements = jQuery.grep(self.elements, function(elem) {
+        return elem.id > self.lastId;
+      });
+      setElements(prunedElements);
     };
 
     const setElements = function(elements) {
@@ -245,12 +254,142 @@ jQuery(document).ready(function($) {
     constructor();
   }
 
-  function App(data, externalData, scraper, images, status) {
+  function LastIdSync(data, externalData, status) {
     const self = this;
 
-    const constructor = function(data, externalData, scraper, images, status) {
+    const constructor = function(data, externalData, status) {
       self.data = data;
       self.externalData = externalData;
+      self.status = status;
+    };
+
+    // ------------------- Methods -------------------
+    this.synchronizeLastId = function(done) {
+      self.status.setLastIdStatusBusy();
+      self.externalData.readValue(self.data.token, function(externalLastId) {
+        handleExternalLastIdGot(externalLastId, done);
+      }, function() {
+        handleExternalLastIdGetFailed(done);
+      });
+    };
+
+    const handleExternalLastIdGot = function(externalLastId, done) {
+      if (externalLastId > self.data.lastId) {
+        self.data.updateLastId(externalLastId);
+        self.status.setLastIdStatusUpdated();
+        done();
+      } else if (externalLastId === self.data.lastId) {
+        self.status.setLastIdStatusUpToDate();
+        done();
+      } else {
+        self.status.setStatusBusy('Saving lastId');
+        self.externalData.saveValue(self.data.token, self.data.lastId, function() {
+          handleExternalLastIdSaved(done);
+        }, function() {
+          handleExternalLastIdSaveFailed(done);
+        });
+      }
+    };
+
+    const handleExternalLastIdSaved = function(done) {
+      self.status.setLastIdStatusSaved();
+      done();
+    };
+
+    const handleExternalLastIdSaveFailed = function(done) {
+      self.status.setLastIdStatusNotSaved();
+      done();
+    };
+
+    const handleExternalLastIdGetFailed = function(done) {
+      self.status.setLastIdStatusNotLoaded();
+      done();
+    };
+
+    //------------------- Constructor -------------------
+    constructor(data, externalData, status);
+  }
+
+  function Images(data) {
+    const self = this;
+
+    const FETCH_SIZE = 10;
+    const IMG_URL = 'http://www.joemonster.org/szaffa/';
+
+    const constructor = function(data) {
+      self.data = data;
+      self.displayedElements = [];
+
+      $('#fetch-next')
+        .on('click', self.showNextBatch)
+        .hide();
+    };
+
+    //------------------- Methods -------------------
+    this.showNextBatch = function() {
+      clearCurrentImages();
+      self.data.elements.slice(0, FETCH_SIZE).forEach(appendElement);
+
+      if (self.displayedElements.length === 0) {
+        $('#fetch-next').hide();
+      } else {
+        $('#fetch-next').show();
+        $('#images')[0].scrollIntoView(true);
+      }
+    };
+
+    //------------------- Internal -------------------
+    const clearCurrentImages = function() {
+      $('#images').html('');
+      self.data.removeElements(self.displayedElements);
+      self.displayedElements = [];
+    };
+
+    const appendElement = function(element) {
+      const img = $('<img>', {src: element.url + '.jpg'})
+        .on('error', imageErrorHandler);
+      const link = $('<h4/>').append(
+        $('<strong/>').append(
+          $('<a/>', {
+            href: IMG_URL + element.id,
+            target: '_blank',
+            text: element.id
+          })
+        )
+      );
+      const panel = $('<div/>', {class: 'panel panel-default'})
+        .append($('<div/>', {class: 'panel-heading'}).append(link))
+        .append($('<div/>', {class: 'panel-body'}).append(img));
+
+      $('#images').append(panel).append($('<br>'));
+
+      self.displayedElements.push(element);
+    };
+
+    const imageErrorHandler = function(event) {
+      const img = event.target;
+
+      const oldSrc = img.src;
+      let newSrc = oldSrc.replace('.png', '.gif');
+      newSrc = newSrc.replace('.jpg', '.png');
+
+      if (newSrc !== oldSrc) {
+        img.src = newSrc;
+      }
+
+      return true;
+    };
+
+    //------------------- Constructor -------------------
+    constructor(data);
+  }
+
+  function App(data, lastIdSync, scraper, images, status) {
+    const self = this;
+
+    const constructor = function(data, lastIdSync, scraper, images, status) {
+      self.data = data;
+      self.lastIdSync = lastIdSync;
       self.scraper = scraper;
       self.images = images;
       self.status = status;
@@ -261,53 +400,21 @@ jQuery(document).ready(function($) {
     this.start = function() {
       if (self.data.isLoaded() && !self.loading) {
         self.loading = true;
-        self.status.setStatusBusy('Getting lastId');
-        self.status.setLastIdStatusBusy();
-
-        self.externalData.readValue(self.data.token, handleExternalLastIdGot, handleExternalLastIdGetFailed);
+        self.status.setStatusBusy('Synchronizing lastId');
+        self.lastIdSync.synchronizeLastId(lastIdUpdated);
       }
     };
 
     // ------------------- Internal -------------------
-    const handleExternalLastIdGot = function(externalLastId) {
-      if (externalLastId > self.data.lastId) {
-        self.data.setLastId(externalLastId);
-        self.status.setLastIdStatusUpdated();
-        lastIdUpdated();
-      } else if (externalLastId === self.data.lastId) {
-        self.status.setLastIdStatusUpToDate();
-        lastIdUpdated();
-      } else {
-        self.status.setStatusBusy('Saving lastId');
-        self.externalData.saveValue(self.data.token, self.data.lastId, handleExternalLastIdSaved, handleExternalLastIdSaveFailed);
-      }
-    };
-
-    const handleExternalLastIdSaved = function() {
-      self.status.setLastIdStatusSaved();
-      lastIdUpdated();
-    };
-
-    const handleExternalLastIdSaveFailed = function() {
-      self.status.setLastIdStatusNotSaved();
-      lastIdUpdated();
-    };
-
-    const handleExternalLastIdGetFailed = function() {
-      self.status.setLastIdStatusNotLoaded();
-      lastIdUpdated();
-    };
-
     const lastIdUpdated = function() {
-      self.data.pruneElements();
-      const lastElementId = self.data.elements.length > 0 ? self.data.elements[self.data.elements.length - 1].id : self.data.lastId;
+      self.status.setStatusBusy('Scrapping images');
 
       self.status.setNewImagesStatusBusy();
+      const lastElementId = self.data.elements.length > 0 ? self.data.elements[self.data.elements.length - 1].id : self.data.lastId;
       scrapPage(1, [], lastElementId, scrappingFinished);
     };
 
     const scrapPage = function(page, elements, lastElementId, success) {
-      self.status.setStatusBusy('Scrapping ' + page);
       self.scraper.getElementsFromPage(page, function(scrappedElements) {
         elements = scrappedElements.reverse().concat(elements);
         if (elements[0].id <= lastElementId) {
@@ -320,7 +427,6 @@ jQuery(document).ready(function($) {
 
     const handleScrappingFailed = function() {
       self.status.setNewImagesStatusNotUpdated();
-
       self.status.setStatusFinishedWithError('Scrapping Failed');
       finish();
     };
@@ -339,7 +445,7 @@ jQuery(document).ready(function($) {
     };
 
     //------------------- Constructor -------------------
-    constructor(data, externalData, scraper, images, status);
+    constructor(data, lastIdSync, scraper, images, status);
   }
 
   function SettingsView(data, externalData, scraper, app) {
@@ -426,86 +532,13 @@ jQuery(document).ready(function($) {
     constructor(data, externalData, scraper, app);
   }
 
-  function Images(data) {
-    const self = this;
-
-    const FETCH_SIZE = 10;
-    const IMG_URL = 'http://www.joemonster.org/szaffa/';
-
-    const constructor = function(data) {
-      self.data = data;
-      self.displayedElements = [];
-
-      $('#fetch-next')
-        .on('click', self.showNextBatch)
-        .hide();
-    };
-
-    //------------------- Methods -------------------
-    this.showNextBatch = function() {
-      clearCurrentImages();
-      self.data.elements.slice(0, FETCH_SIZE).forEach(appendElement);
-
-      if (self.displayedElements.length === 0) {
-        $('#fetch-next').hide();
-      } else {
-        $('#fetch-next').show();
-        $('#images')[0].scrollIntoView(true);
-      }
-    };
-
-    //------------------- Internal -------------------
-    const clearCurrentImages = function() {
-      $('#images').html('');
-      self.data.removeElements(self.displayedElements);
-      self.displayedElements = [];
-    };
-
-    const appendElement = function(element) {
-      const img = $('<img>', {src: element.url + '.jpg'})
-        .on('error', imageErrorHandler);
-      const link = $('<h4/>').append(
-        $('<strong/>').append(
-          $('<a/>', {
-            href: IMG_URL + element.id,
-            target: '_blank',
-            text: element.id
-          })
-        )
-      );
-      const panel = $('<div/>', {class: 'panel panel-default'})
-        .append($('<div/>', {class: 'panel-heading'}).append(link))
-        .append($('<div/>', {class: 'panel-body'}).append(img));
-
-      $('#images').append(panel).append($('<br>'));
-
-      self.displayedElements.push(element);
-    };
-
-    const imageErrorHandler = function(event) {
-      const img = event.target;
-
-      const oldSrc = img.src;
-      let newSrc = oldSrc.replace('.png', '.gif');
-      newSrc = newSrc.replace('.jpg', '.png');
-
-      if (newSrc !== oldSrc) {
-        img.src = newSrc;
-      }
-
-      return true;
-    };
-
-    //------------------- Constructor -------------------
-    constructor(data);
-  }
-
-  const data = new Data();
   const externalData = new ExternalData();
   const scraper = new Scraper();
   const status = new Status();
+  const data = new Data();
   const images = new Images(data);
-  const app = new App(data, externalData, scraper, images, status);
+  const lastIdSync = new LastIdSync(data, externalData, status);
+  const app = new App(data, lastIdSync, scraper, images, status);
   const settingsView = new SettingsView(data, externalData, scraper, app);
 
   app.start();
