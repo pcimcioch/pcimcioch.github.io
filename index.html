@@ -5,13 +5,13 @@
     <link rel="canonical" href="https://pcimcioch.github.io">
     <link rel="icon" type="image/png" href="/images/icons/icon-16x16.png" sizes="16x16">
     <link rel="icon" type="image/png" href="/images/icons/icon-32x32.png" sizes="32x32">
-    <link rel="icon" type="image/png" href="/images/icons/icon-128x128.png" sizes="32x32">
+    <link rel="icon" type="image/png" href="/images/icons/icon-128x128.png" sizes="128x128">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Joemonster Szaffa Viewer</title>
 
-    <link rel="stylesheet" href="css/bootstrap.css">
-    <link rel="stylesheet" href="css/bootstrap-theme.css">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="styles/bootstrap.css">
+    <link rel="stylesheet" href="styles/bootstrap-theme.css">
+    <link rel="stylesheet" href="styles/style.css">
 
     <!--<link rel="manifest" href="/manifest.json">-->
 </head>
@@ -87,13 +87,32 @@
                         </div>
                         <button class="btn btn-block btn-sm btn-primary form-control" id="save-settings">Save</button>
                     </div>
+
+                    <div class="panel-footer">
+                        <p>
+                            <strong>
+                                <span>Data Cache: </span>
+                                <span id="data-cache" class="text-muted">Refresh to see</span>
+                            </strong>
+                            <button id="data-cache-clear" class="btn btn-xs btn-danger pull-right">Clear</button>
+                            <button id="data-cache-refresh" class="btn btn-xs btn-info pull-right">Refresh</button>
+                        </p>
+                        <p>
+                            <strong>
+                                <span>Shell Cache: </span>
+                                <span id="shell-cache" class="text-muted">Refresh to see</span>
+                            </strong>
+                            <button id="shell-cache-clear" class="btn btn-xs btn-danger pull-right">Clear</button>
+                            <button id="shell-cache-refresh" class="btn btn-xs btn-info pull-right">Refresh</button>
+                        </p>
+                    </div>
                 </div>
             </div>
 
         </div>
     </div>
 
-    <!-- main container with files -->
+    <!-- main container with images -->
     <div class="text-center images-container" id="images"></div>
 
     <div>
@@ -101,8 +120,8 @@
         <br>
     </div>
 
-    <script src="js/jquery.min.js"></script>
-    <script src="js/bootstrap.min.js"></script>
-    <script src="js/app.js"></script>
+    <script src="scripts/jquery.min.js"></script>
+    <script src="scripts/bootstrap.min.js"></script>
+    <script src="scripts/app.js"></script>
 </body>
 </html>

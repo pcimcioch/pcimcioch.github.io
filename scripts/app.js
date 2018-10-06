@@ -1,7 +1,38 @@
-/*jshint esversion: 6 */
+/* jshint esversion: 6 */
+/* jshint node: true */
 
 jQuery(document).ready(function($) {
   'use strict';
+
+  function Cache() {
+
+    this.DATA_CACHE_NAME = 'crawler-data-v1';
+    this.SHELL_CACHE_NAME = 'crawler-shell-v1';
+
+    // ------------------- Methods -------------------
+    this.getCacheInfo = function(cacheName, done) {
+      caches.open(cacheName).then(function(cache) {
+        cache.keys().then(function(keyList) {
+          const keyCount = keyList.length;
+          let keysToFinish = keyCount;
+          let size = 0;
+          keyList.forEach(function(key) {
+            cache.match(key).then(function(entry) {
+              if (entry) {
+                size += parseInt(entry.headers.get('content-length'));
+              }
+              if (--keysToFinish === 0) {
+                done({count: keyCount, size: size});
+              }
+            });
+          });
+          if (keyCount === 0) {
+            done({count: 0, size: 0});
+          }
+        });
+      });
+    };
+  }
 
   function ExternalData() {
     const API_URL = 'https://api.keyvalue.xyz';
@@ -45,9 +76,11 @@ jQuery(document).ready(function($) {
 
     // ------------------- Methods -------------------
     this.setup = function(token, lastId) {
+      if (self.lastId !== lastId) {
+        setElements([]);
+      }
       setLastId(lastId);
       setToken(token);
-      setElements([]);
     };
 
     this.updateLastId = function(lastId) {
@@ -116,6 +149,7 @@ jQuery(document).ready(function($) {
     const setElements = function(elements) {
       self.elements = elements;
       localStorage.setItem('elements', JSON.stringify(self.elements));
+      // TODO remove elements from cache
       refreshNewImages();
     };
 
@@ -388,6 +422,7 @@ jQuery(document).ready(function($) {
 
     const scrappingFinished = function() {
       setStatusFinished('Loaded');
+      // TODO add precaching
       finish();
     };
 
@@ -414,20 +449,25 @@ jQuery(document).ready(function($) {
     constructor(data, lastIdSync, scraper, images);
   }
 
-  function SettingsView(data, externalData, scraper, app) {
+  function SettingsView(data, externalData, scraper, app, cache) {
     const self = this;
 
-    const constructor = function(data, externalData, scraper, app) {
+    const constructor = function(data, externalData, scraper, app, cache) {
       self.data = data;
       self.externalData = externalData;
       self.scraper = scraper;
       self.app = app;
+      self.cache = cache;
+
       self.loaded = false;
 
       $('#save-settings').on('click', saveSettings);
-      $('#settings-heading').on('click', setupSettings);
+      $('#settings-panel').on('shown.bs.collapse', setupSettings);
       $('#regenerate-token').on('click', regenerateToken);
       $('#regenerate-last-id').on('click', regenerateLastId);
+      $('#data-cache-refresh').on('click', dataCacheRefresh);
+      $('#shell-cache-refresh').on('click', shellCacheRefresh);
+      // TODO add clear cache
     };
 
     // ------------------- Internal -------------------
@@ -494,18 +534,63 @@ jQuery(document).ready(function($) {
       $('#last-id-input').val(self.data.lastId);
     };
 
+    const dataCacheRefresh = function() {
+      $('#data-cache').removeClass().addClass('text-muted').text('Calculating...');
+      $('#data-cache-clear').prop('disabled', true);
+      $('#data-cache-refresh').prop('disabled', true);
+      self.cache.getCacheInfo(self.cache.DATA_CACHE_NAME, populateDataCache);
+    };
+
+    const populateDataCache = function(cacheInfo) {
+      $('#data-cache').removeClass().addClass('text-success')
+        .text(cacheInfo.count + ' / ' + formatSize(cacheInfo.size));
+      $('#data-cache-clear').prop('disabled', false);
+      $('#data-cache-refresh').prop('disabled', false);
+    };
+
+    const shellCacheRefresh = function() {
+      $('#shell-cache').removeClass().addClass('text-muted').text('Calculating...');
+      $('#shell-cache-clear').prop('disabled', true);
+      $('#shell-cache-refresh').prop('disabled', true);
+      self.cache.getCacheInfo(self.cache.SHELL_CACHE_NAME, populateShellCache);
+    };
+
+    const populateShellCache = function(cacheInfo) {
+      $('#shell-cache').removeClass().addClass('text-success')
+        .text(cacheInfo.count + ' / ' + formatSize(cacheInfo.size));
+      $('#shell-cache-clear').prop('disabled', false);
+      $('#shell-cache-refresh').prop('disabled', false);
+    };
+
+    const formatSize = function(size) {
+      let i = -1;
+      const byteUnits = [' kB', ' MB', ' GB'];
+      do {
+        size = size / 1000;
+        i++;
+      } while (size > 1000);
+
+      return Math.max(size, 0.1).toFixed(1) + byteUnits[i];
+    };
+
     //------------------- Constructor -------------------
-    constructor(data, externalData, scraper, app);
+    constructor(data, externalData, scraper, app, cache);
   }
 
+  const cache = new Cache();
   const externalData = new ExternalData();
   const data = new Data();
   const lastIdSync = new LastIdSync(data, externalData);
   const scraper = new Scraper(data);
   const images = new Images(data, lastIdSync);
   const app = new App(data, lastIdSync, scraper, images);
-  const settingsView = new SettingsView(data, externalData, scraper, app);
+  const settingsView = new SettingsView(data, externalData, scraper, app, cache);
 
-  app.start();
+  navigator.serviceWorker
+    .register('./service-worker.js')
+    .then(function() {
+      console.log('Service Worker Registered');
+      app.start();
+    });
 
 });
