@@ -32,68 +32,6 @@ jQuery(document).ready(function($) {
     };
   }
 
-  // TODO maybe remove status class and spread it's method to usage points?
-  function Status() {
-    // ------------------- Methods -------------------
-    this.setStatusBusy = function(status) {
-      setStatus(status, 'text-muted', 'glyphicon glyphicon-time text-muted');
-    };
-
-    this.setStatusFinished = function(status) {
-      setStatus(status, 'text-success', 'glyphicon glyphicon-ok text-success');
-    };
-
-    this.setLastIdStatusBusy = function() {
-      setLastIdStatus('Synchronizing', 'glyphicon glyphicon-transfer text-muted');
-    };
-
-    this.setLastIdStatusUpToDate = function() {
-      setLastIdStatus('lastId up to date', 'glyphicon glyphicon-ok text-success');
-    };
-
-    this.setLastIdStatusUpdated = function() {
-      setLastIdStatus('Newer lastId downloaded', 'glyphicon glyphicon-download text-success');
-    };
-
-    this.setLastIdStatusSaved = function() {
-      setLastIdStatus('Saved newer lastId', 'glyphicon glyphicon-floppy-saved text-success');
-    };
-
-    this.setLastIdStatusNotLoaded = function() {
-      setLastIdStatus('Unable to load lastId', 'glyphicon glyphicon-download text-danger');
-    };
-
-    this.setLastIdStatusNotSaved = function() {
-      setLastIdStatus('Unable to save newer lastId', 'glyphicon glyphicon-floppy-remove text-danger');
-    };
-
-    this.setNewImagesStatusBusy = function() {
-      setNewImagesStatus('Synchronizing', 'glyphicon glyphicon-transfer text-muted');
-    };
-
-    this.setNewImagesStatusUpdated = function() {
-      setNewImagesStatus('Downloaded newest data', 'glyphicon glyphicon-ok text-success');
-    };
-
-    this.setNewImagesStatusNotUpdated = function() {
-      setNewImagesStatus('Unable to download newest data', 'glyphicon glyphicon-download text-danger');
-    };
-
-    // ------------------- View -------------------
-    const setStatus = function(status, textClass, glyphClass) {
-      $('#status').removeClass().addClass(textClass).text(status);
-      $('#status-status').removeClass().addClass(glyphClass);
-    };
-
-    const setLastIdStatus = function(status, glyphClass) {
-      $('#last-id-status').removeClass().addClass(glyphClass).prop('title', status);
-    };
-
-    const setNewImagesStatus = function(status, glyphClass) {
-      $('#new-images-status').removeClass().addClass(glyphClass).prop('title', status);
-    };
-  }
-
   function Data() {
     const self = this;
 
@@ -122,15 +60,8 @@ jQuery(document).ready(function($) {
         return;
       }
 
-      if (self.elements.length > 0) {
-        elementsToAdd = jQuery.grep(elementsToAdd, function(elem) {
-          return elem.id > self.elements[self.elements.length - 1].id;
-        });
-      } else {
-        elementsToAdd = jQuery.grep(elementsToAdd, function(elem) {
-          return elem.id > self.lastId;
-        });
-      }
+      const thresholdId = self.elements.length > 0 ? self.elements[self.elements.length - 1].id : self.lastId;
+      elementsToAdd = elementsToAdd.filter(elem => elem.id > thresholdId);
 
       setElements(self.elements.concat(elementsToAdd));
     };
@@ -178,9 +109,7 @@ jQuery(document).ready(function($) {
         return;
       }
 
-      const prunedElements = jQuery.grep(self.elements, function(elem) {
-        return elem.id > self.lastId;
-      });
+      const prunedElements = self.elements.filter(elem => elem.id > self.lastId);
       setElements(prunedElements);
     };
 
@@ -207,18 +136,17 @@ jQuery(document).ready(function($) {
     constructor();
   }
 
-  function LastIdSync(data, externalData, status) {
+  function LastIdSync(data, externalData) {
     const self = this;
 
-    const constructor = function(data, externalData, status) {
+    const constructor = function(data, externalData) {
       self.data = data;
       self.externalData = externalData;
-      self.status = status;
     };
 
     // ------------------- Methods -------------------
     this.synchronizeLastId = function(done) {
-      self.status.setLastIdStatusBusy();
+      setLastIdStatus('Synchronizing', 'glyphicon glyphicon-transfer text-muted');
       self.externalData.readValue(self.data.token, function(externalLastId) {
         handleExternalLastIdGot(externalLastId, done);
       }, function() {
@@ -229,13 +157,12 @@ jQuery(document).ready(function($) {
     const handleExternalLastIdGot = function(externalLastId, done) {
       if (externalLastId > self.data.lastId) {
         self.data.updateLastId(externalLastId);
-        self.status.setLastIdStatusUpdated();
+        setLastIdStatus('Newer lastId downloaded', 'glyphicon glyphicon-download text-success');
         done();
       } else if (externalLastId === self.data.lastId) {
-        self.status.setLastIdStatusUpToDate();
+        setLastIdStatus('lastId up to date', 'glyphicon glyphicon-ok text-success');
         done();
       } else {
-        self.status.setStatusBusy('Saving lastId');
         self.externalData.saveValue(self.data.token, self.data.lastId, function() {
           handleExternalLastIdSaved(done);
         }, function() {
@@ -245,25 +172,30 @@ jQuery(document).ready(function($) {
     };
 
     const handleExternalLastIdSaved = function(done) {
-      self.status.setLastIdStatusSaved();
+      setLastIdStatus('Saved newer lastId', 'glyphicon glyphicon-floppy-saved text-success');
       done();
     };
 
     const handleExternalLastIdSaveFailed = function(done) {
-      self.status.setLastIdStatusNotSaved();
+      setLastIdStatus('Unable to save newer lastId', 'glyphicon glyphicon-floppy-remove text-danger');
       done();
     };
 
     const handleExternalLastIdGetFailed = function(done) {
-      self.status.setLastIdStatusNotLoaded();
+      setLastIdStatus('Unable to load lastId', 'glyphicon glyphicon-download text-danger');
       done();
     };
 
+    //------------------- View -------------------
+    const setLastIdStatus = function(status, glyphClass) {
+      $('#last-id-status').removeClass().addClass(glyphClass).prop('title', status);
+    };
+
     //------------------- Constructor -------------------
-    constructor(data, externalData, status);
+    constructor(data, externalData);
   }
 
-  function Scraper(data, status) {
+  function Scraper(data) {
     const self = this;
 
     const CORS_URL = 'https://cors.io/?';
@@ -271,9 +203,8 @@ jQuery(document).ready(function($) {
     const ELEM_REGEX = /href='\/p\/([0-9]+)\/[\s\S]*?\/upload\/(.*?)\/s_(.*?)'/g;
     const IMG_SRC_URL = "https://vader.joemonster.org/upload/";
 
-    const constructor = function(data, status) {
+    const constructor = function(data) {
       self.data = data;
-      self.status = status;
     };
 
     // ------------------- Methods -------------------
@@ -284,7 +215,7 @@ jQuery(document).ready(function($) {
     };
 
     this.scrapNewElements = function(done) {
-      self.status.setNewImagesStatusBusy();
+      setNewImagesStatus('Synchronizing', 'glyphicon glyphicon-transfer text-muted');
       const lastElementId = self.data.elements.length > 0 ? self.data.elements[self.data.elements.length - 1].id : self.data.lastId;
       scrapPage(1, [], lastElementId, scrappingFinished, done);
     };
@@ -304,13 +235,13 @@ jQuery(document).ready(function($) {
     };
 
     const handleScrappingFailed = function(done) {
-      self.status.setNewImagesStatusNotUpdated();
+      setNewImagesStatus('Unable to download newest data', 'glyphicon glyphicon-download text-danger');
       done();
     };
 
     const scrappingFinished = function(elements, done) {
       self.data.addElements(elements);
-      self.status.setNewImagesStatusUpdated();
+      setNewImagesStatus('Downloaded newest data', 'glyphicon glyphicon-ok text-success');
       done();
     };
 
@@ -341,18 +272,25 @@ jQuery(document).ready(function($) {
       return filename.replace(/\.[^/.]+$/, "");
     };
 
+    //------------------- View -------------------
+    const setNewImagesStatus = function(status, glyphClass) {
+      $('#new-images-status').removeClass().addClass(glyphClass).prop('title', status);
+    };
+
     //------------------- Constructor -------------------
-    constructor(data, status);
+    constructor(data);
   }
 
-  function Images(data) {
+  function Images(data, lastIdSync) {
     const self = this;
 
-    const FETCH_SIZE = 10;
+    const FETCH_SIZE = 25;
     const IMG_URL = 'http://www.joemonster.org/szaffa/';
 
-    const constructor = function(data) {
+    const constructor = function(data, lastIdSync) {
       self.data = data;
+      self.lastIdSync = lastIdSync;
+
       self.displayedElements = [];
 
       $('#fetch-next')
@@ -378,8 +316,8 @@ jQuery(document).ready(function($) {
       $('#images').html('');
       if (self.displayedElements.length > 0) {
         self.data.removeElements(self.displayedElements);
-        // TODO lastId synchronize here
         self.displayedElements = [];
+        self.lastIdSync.synchronizeLastId(function(){});
       }
     };
 
@@ -419,18 +357,17 @@ jQuery(document).ready(function($) {
     };
 
     //------------------- Constructor -------------------
-    constructor(data);
+    constructor(data, lastIdSync);
   }
 
-  function App(data, lastIdSync, scraper, images, status) {
+  function App(data, lastIdSync, scraper, images) {
     const self = this;
 
-    const constructor = function(data, lastIdSync, scraper, images, status) {
+    const constructor = function(data, lastIdSync, scraper, images) {
       self.data = data;
       self.lastIdSync = lastIdSync;
       self.scraper = scraper;
       self.images = images;
-      self.status = status;
       self.loading = false;
     };
 
@@ -438,19 +375,19 @@ jQuery(document).ready(function($) {
     this.start = function() {
       if (self.data.isLoaded() && !self.loading) {
         self.loading = true;
-        self.status.setStatusBusy('Synchronizing lastId');
+        setStatusBusy('Synchronizing lastId');
         self.lastIdSync.synchronizeLastId(lastIdUpdated);
       }
     };
 
     // ------------------- Internal -------------------
     const lastIdUpdated = function() {
-      self.status.setStatusBusy('Scrapping images');
+      setStatusBusy('Scrapping images');
       self.scraper.scrapNewElements(scrappingFinished);
     };
 
     const scrappingFinished = function() {
-      self.status.setStatusFinished('Loaded');
+      setStatusFinished('Loaded');
       finish();
     };
 
@@ -459,8 +396,22 @@ jQuery(document).ready(function($) {
       self.images.showNextBatch();
     };
 
+    // ------------------- View -------------------
+    const setStatusBusy = function(status) {
+      setStatus(status, 'text-muted', 'glyphicon glyphicon-time text-muted');
+    };
+
+    const setStatusFinished = function(status) {
+      setStatus(status, 'text-success', 'glyphicon glyphicon-ok text-success');
+    };
+
+    const setStatus = function(status, textClass, glyphClass) {
+      $('#status').removeClass().addClass(textClass).text(status);
+      $('#status-status').removeClass().addClass(glyphClass);
+    };
+
     //------------------- Constructor -------------------
-    constructor(data, lastIdSync, scraper, images, status);
+    constructor(data, lastIdSync, scraper, images);
   }
 
   function SettingsView(data, externalData, scraper, app) {
@@ -548,12 +499,11 @@ jQuery(document).ready(function($) {
   }
 
   const externalData = new ExternalData();
-  const status = new Status();
   const data = new Data();
-  const images = new Images(data);
-  const lastIdSync = new LastIdSync(data, externalData, status);
-  const scraper = new Scraper(data, status);
-  const app = new App(data, lastIdSync, scraper, images, status);
+  const lastIdSync = new LastIdSync(data, externalData);
+  const scraper = new Scraper(data);
+  const images = new Images(data, lastIdSync);
+  const app = new App(data, lastIdSync, scraper, images);
   const settingsView = new SettingsView(data, externalData, scraper, app);
 
   app.start();
