@@ -5,33 +5,137 @@ jQuery(document).ready(function($) {
   'use strict';
 
   function Cache() {
+    const self = this;
 
-    this.DATA_CACHE_NAME = 'crawler-data-v1';
-    this.SHELL_CACHE_NAME = 'crawler-shell-v1';
+    self.DATA_CACHE_NAME = 'crawler-data-v2';
+    self.MAX_CACHE_SIZE = 500;
+
+    const constructor = function() {
+      self.savedCacheSize = 0;
+
+      refreshCacheSize();
+    };
 
     // ------------------- Methods -------------------
-    this.getCacheInfo = function(cacheName, done) {
-      caches.open(cacheName).then(function(cache) {
-        cache.keys().then(function(keyList) {
-          const keyCount = keyList.length;
-          let keysToFinish = keyCount;
-          let size = 0;
-          keyList.forEach(function(key) {
-            cache.match(key).then(function(entry) {
-              if (entry) {
-                size += parseInt(entry.headers.get('content-length'));
-              }
-              if (--keysToFinish === 0) {
-                done({count: keyCount, size: size});
-              }
-            });
-          });
-          if (keyCount === 0) {
-            done({count: 0, size: 0});
+    this.clearDataCache = function() {
+      caches.delete(self.DATA_CACHE_NAME);
+      setCacheSize(0);
+    };
+
+    this.leaveOnlyData = function(elementsToLeave) {
+      if (elementsToLeave.length === 0) {
+        self.clearDataCache();
+        return;
+      }
+
+      elementsToLeave = resolveUrls(elementsToLeave);
+
+      getKeys(function(keyList) {
+        keyList.forEach(function(key) {
+          if (elementsToLeave.indexOf(key.url) === -1) {
+            removeKey(key);
           }
         });
       });
     };
+
+    this.initPrecaching = function(elementsToPrecache) {
+      setCacheStatus('Precaching...', 'glyphicon glyphicon-transfer text-muted', 0);
+      getKeys(function(keyList) {
+        const urlsAlreadyCached = keyList.map(elem => removeExtension(elem.url));
+        elementsToPrecache = elementsToPrecache.filter(elem => urlsAlreadyCached.indexOf(elem) === -1);
+        const availableCacheSize = self.MAX_CACHE_SIZE > keyList.length ? self.MAX_CACHE_SIZE - keyList.length : 0;
+        elementsToPrecache = elementsToPrecache.slice(0, availableCacheSize);
+
+        precache(elementsToPrecache, elementsToPrecache.length);
+      });
+    };
+
+    // ------------------- Internal -------------------
+    const refreshCacheSize = function() {
+      getKeys(keyList => setCacheSize(keyList.length));
+    };
+
+    const getKeys = function(done) {
+      caches.open(self.DATA_CACHE_NAME).then(function(cache) {
+        cache.keys().then(function(keyList) {
+          done(keyList);
+        });
+      });
+    };
+
+    const resolveUrls = function(urls) {
+      return urls.flatMap(elem => [
+        elem + '.jpg',
+        elem + '.png',
+        elem + '.gif'
+      ]);
+    };
+
+    const removeExtension = function(filename) {
+      return filename.replace(/\.[^/.]+$/, "");
+    };
+
+    const removeKey = function(key) {
+      caches.open(self.DATA_CACHE_NAME).then(function(cache) {
+        cache.delete(key);
+      });
+    };
+
+    const precache = function(elementsToPrecache, totalSize) {
+      if (elementsToPrecache.length === 0) {
+        finishPrecaching();
+        return;
+      }
+
+      const element = elementsToPrecache.shift();
+      $('#cache-image-view')
+        .off('load')
+        .off('error')
+        .attr('src', element + '.jpg')
+        .on('load', function() {
+          precacheSuccess(elementsToPrecache, totalSize);
+        })
+        .on('error', function(event) {
+          precacheFail(event.target, elementsToPrecache, totalSize);
+        });
+    };
+
+    const precacheSuccess = function(elementsToPrecache, totalSize) {
+      const percent = Math.floor((totalSize - elementsToPrecache.length) * 100 / totalSize);
+      setCacheStatus('Precaching...', 'glyphicon glyphicon-transfer text-muted', percent);
+      precache(elementsToPrecache, totalSize);
+    };
+
+    const precacheFail = function(img, elementsToPrecache, totalSize) {
+      const oldSrc = img.src;
+      let newSrc = oldSrc.replace('.png', '.gif');
+      newSrc = newSrc.replace('.jpg', '.png');
+
+      if (newSrc !== oldSrc) {
+        img.src = newSrc;
+      } else {
+        precache(elementsToPrecache, totalSize);
+      }
+    };
+
+    const finishPrecaching = function() {
+      setCacheStatus('Cached', 'glyphicon glyphicon-ok text-success');
+      refreshCacheSize();
+    };
+
+    // ------------------- View -------------------
+    const setCacheSize = function(cacheSize) {
+      self.savedCacheSize = cacheSize;
+      $('#cached-images').text(cacheSize);
+    };
+
+    const setCacheStatus = function(status, glyphClass, percent = -1) {
+      $('#cached-images-status').removeClass().addClass(glyphClass).prop('title', status);
+      $('#cached-images-percent').text(percent === -1 ? '' : (percent + '%'));
+    };
+    // ------------------- Constructor -------------------
+    constructor();
   }
 
   function ExternalData() {
@@ -63,10 +167,12 @@ jQuery(document).ready(function($) {
     };
   }
 
-  function Data() {
+  function Data(cache) {
     const self = this;
 
-    const constructor = function() {
+    const constructor = function(cache) {
+      self.cache = cache;
+
       loadData();
 
       refreshToken();
@@ -118,6 +224,10 @@ jQuery(document).ready(function($) {
       return self.lastId && self.token;
     };
 
+    this.getElementUrls = function() {
+      return self.elements.map(elem => elem.url);
+    };
+
     // ------------------- Internal -------------------
     const loadData = function() {
       self.token = localStorage.getItem('token');
@@ -149,7 +259,7 @@ jQuery(document).ready(function($) {
     const setElements = function(elements) {
       self.elements = elements;
       localStorage.setItem('elements', JSON.stringify(self.elements));
-      // TODO remove elements from cache
+      self.cache.leaveOnlyData(self.getElementUrls());
       refreshNewImages();
     };
 
@@ -167,7 +277,7 @@ jQuery(document).ready(function($) {
     };
 
     //------------------- Constructor -------------------
-    constructor();
+    constructor(cache);
   }
 
   function LastIdSync(data, externalData) {
@@ -351,7 +461,8 @@ jQuery(document).ready(function($) {
       if (self.displayedElements.length > 0) {
         self.data.removeElements(self.displayedElements);
         self.displayedElements = [];
-        self.lastIdSync.synchronizeLastId(function(){});
+        self.lastIdSync.synchronizeLastId(function() {
+        });
       }
     };
 
@@ -394,11 +505,12 @@ jQuery(document).ready(function($) {
     constructor(data, lastIdSync);
   }
 
-  function App(data, lastIdSync, scraper, images) {
+  function App(data, cache, lastIdSync, scraper, images) {
     const self = this;
 
-    const constructor = function(data, lastIdSync, scraper, images) {
+    const constructor = function(data, cache, lastIdSync, scraper, images) {
       self.data = data;
+      self.cache = cache;
       self.lastIdSync = lastIdSync;
       self.scraper = scraper;
       self.images = images;
@@ -422,7 +534,7 @@ jQuery(document).ready(function($) {
 
     const scrappingFinished = function() {
       setStatusFinished('Loaded');
-      // TODO add precaching
+      self.cache.initPrecaching(self.data.getElementUrls());
       finish();
     };
 
@@ -446,7 +558,7 @@ jQuery(document).ready(function($) {
     };
 
     //------------------- Constructor -------------------
-    constructor(data, lastIdSync, scraper, images);
+    constructor(data, cache, lastIdSync, scraper, images);
   }
 
   function SettingsView(data, externalData, scraper, app, cache) {
@@ -465,9 +577,7 @@ jQuery(document).ready(function($) {
       $('#settings-panel').on('shown.bs.collapse', setupSettings);
       $('#regenerate-token').on('click', regenerateToken);
       $('#regenerate-last-id').on('click', regenerateLastId);
-      $('#data-cache-refresh').on('click', dataCacheRefresh);
-      $('#shell-cache-refresh').on('click', shellCacheRefresh);
-      // TODO add clear cache
+      $('#cache-clear').on('click', self.cache.clearDataCache);
     };
 
     // ------------------- Internal -------------------
@@ -534,63 +644,21 @@ jQuery(document).ready(function($) {
       $('#last-id-input').val(self.data.lastId);
     };
 
-    const dataCacheRefresh = function() {
-      $('#data-cache').removeClass().addClass('text-muted').text('Calculating...');
-      $('#data-cache-clear').prop('disabled', true);
-      $('#data-cache-refresh').prop('disabled', true);
-      self.cache.getCacheInfo(self.cache.DATA_CACHE_NAME, populateDataCache);
-    };
-
-    const populateDataCache = function(cacheInfo) {
-      $('#data-cache').removeClass().addClass('text-success')
-        .text(cacheInfo.count + ' / ' + formatSize(cacheInfo.size));
-      $('#data-cache-clear').prop('disabled', false);
-      $('#data-cache-refresh').prop('disabled', false);
-    };
-
-    const shellCacheRefresh = function() {
-      $('#shell-cache').removeClass().addClass('text-muted').text('Calculating...');
-      $('#shell-cache-clear').prop('disabled', true);
-      $('#shell-cache-refresh').prop('disabled', true);
-      self.cache.getCacheInfo(self.cache.SHELL_CACHE_NAME, populateShellCache);
-    };
-
-    const populateShellCache = function(cacheInfo) {
-      $('#shell-cache').removeClass().addClass('text-success')
-        .text(cacheInfo.count + ' / ' + formatSize(cacheInfo.size));
-      $('#shell-cache-clear').prop('disabled', false);
-      $('#shell-cache-refresh').prop('disabled', false);
-    };
-
-    const formatSize = function(size) {
-      let i = -1;
-      const byteUnits = [' kB', ' MB', ' GB'];
-      do {
-        size = size / 1000;
-        i++;
-      } while (size > 1000);
-
-      return Math.max(size, 0.1).toFixed(1) + byteUnits[i];
-    };
-
     //------------------- Constructor -------------------
     constructor(data, externalData, scraper, app, cache);
   }
 
   const cache = new Cache();
   const externalData = new ExternalData();
-  const data = new Data();
+  const data = new Data(cache);
   const lastIdSync = new LastIdSync(data, externalData);
   const scraper = new Scraper(data);
   const images = new Images(data, lastIdSync);
-  const app = new App(data, lastIdSync, scraper, images);
+  const app = new App(data, cache, lastIdSync, scraper, images);
   const settingsView = new SettingsView(data, externalData, scraper, app, cache);
 
   navigator.serviceWorker
     .register('./service-worker.js')
-    .then(function() {
-      console.log('Service Worker Registered');
-      app.start();
-    });
+    .then(app.start);
 
 });

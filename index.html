@@ -27,8 +27,8 @@
                         <tbody>
                             <tr>
                                 <th class="col-md-5">Token</th>
-                                <td id="token" class="col-md-6">Unknown</td>
-                                <td class="col-md-1"></td>
+                                <td id="token" class="col-md-5">Unknown</td>
+                                <td class="col-md-2"></td>
                             </tr>
                             <tr>
                                 <th>Last Id</th>
@@ -41,6 +41,14 @@
                                 <td><span id="new-images-status" class="glyphicon glyphicon-time text-muted" title="Waiting to synchronize"></span></td>
                             </tr>
                             <tr>
+                                <th>Cached</th>
+                                <td id="cached-images">Unknown</td>
+                                <td>
+                                    <span id="cached-images-status" class="glyphicon glyphicon-time text-muted" title="Waiting to synchronize"></span>
+                                    <span id="cached-images-percent" class="text-muted"></span>
+                                </td>
+                            </tr>
+                            <tr>
                                 <th>Status</th>
                                 <th id="status" class="text-muted">Starting</th>
                                 <td><span id="status-status" class="glyphicon glyphicon-time text-muted"></span></td>
@@ -48,6 +56,10 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            <div class="images-container hidden">
+                <img id="cache-image-view" src="">
             </div>
 
             <!-- Configuration Table -->
@@ -89,22 +101,10 @@
                     </div>
 
                     <div class="panel-footer">
-                        <p>
-                            <strong>
-                                <span>Data Cache: </span>
-                                <span id="data-cache" class="text-muted">Refresh to see</span>
-                            </strong>
-                            <button id="data-cache-clear" class="btn btn-xs btn-danger pull-right">Clear</button>
-                            <button id="data-cache-refresh" class="btn btn-xs btn-info pull-right">Refresh</button>
-                        </p>
-                        <p>
-                            <strong>
-                                <span>Shell Cache: </span>
-                                <span id="shell-cache" class="text-muted">Refresh to see</span>
-                            </strong>
-                            <button id="shell-cache-clear" class="btn btn-xs btn-danger pull-right">Clear</button>
-                            <button id="shell-cache-refresh" class="btn btn-xs btn-info pull-right">Refresh</button>
-                        </p>
+                        <button id="cache-clear" class="btn btn-xs btn-danger">
+                            <span class="glyphicon glyphicon-remove"></span>
+                            Clear Cache
+                        </button>
                     </div>
                 </div>
             </div>
