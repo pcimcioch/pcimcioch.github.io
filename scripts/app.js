@@ -7,7 +7,7 @@ jQuery(document).ready(function($) {
   function Cache() {
     const self = this;
 
-    self.DATA_CACHE_NAME = 'crawler-data-v2';
+    self.DATA_CACHE_NAME = 'crawler-data-v1';
     self.MAX_CACHE_SIZE = 500;
 
     const constructor = function() {
