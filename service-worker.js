@@ -1,8 +1,8 @@
 /* jshint esversion: 6 */
 /* jshint node: true */
 
-const DATA_CACHE_NAME = 'crawler-data-v1';
-const SHELL_CACHE_NAME = 'crawler-shell-v1';
+const DATA_CACHE_NAME = 'crawler-data-v2';
+const SHELL_CACHE_NAME = 'crawler-shell-v2';
 const DATA_URL = 'https://vader.joemonster.org';
 const filesToCache = [
   '/',
