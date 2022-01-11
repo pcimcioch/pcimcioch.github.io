@@ -138,35 +138,6 @@ jQuery(document).ready(function($) {
     constructor();
   }
 
-  function ExternalData() {
-    const API_URL = 'https://api.keyvalue.xyz';
-    const KEY = 'lastId';
-
-    // ------------------- Methods -------------------
-    this.generateToken = function(success, failure) {
-      $.post(API_URL + '/new/' + KEY)
-        .done(function(data) {
-          const token = data.substring(API_URL.length + 1, data.length - KEY.length - 2);
-          success(token);
-        })
-        .fail(failure);
-    };
-
-    this.saveValue = function(token, value, success, failure) {
-      $.post(API_URL + '/' + token + '/' + KEY + '/' + value)
-        .done(success)
-        .fail(failure);
-    };
-
-    this.readValue = function(token, success, failure) {
-      $.get(API_URL + '/' + token + '/' + KEY)
-        .done(function(data) {
-          success(parseInt(data));
-        })
-        .fail(failure);
-    };
-  }
-
   function Data(cache) {
     const self = this;
 
@@ -175,18 +146,16 @@ jQuery(document).ready(function($) {
 
       loadData();
 
-      refreshToken();
       refreshLastId();
       refreshNewImages();
     };
 
     // ------------------- Methods -------------------
-    this.setup = function(token, lastId) {
+    this.setup = function(lastId) {
       if (self.lastId !== lastId) {
         setElements([]);
       }
       setLastId(lastId);
-      setToken(token);
     };
 
     this.updateLastId = function(lastId) {
@@ -221,7 +190,7 @@ jQuery(document).ready(function($) {
     };
 
     this.isLoaded = function() {
-      return self.lastId && self.token;
+      return self.lastId;
     };
 
     this.getElementUrls = function() {
@@ -230,15 +199,8 @@ jQuery(document).ready(function($) {
 
     // ------------------- Internal -------------------
     const loadData = function() {
-      self.token = localStorage.getItem('token');
       self.lastId = parseInt(localStorage.getItem('lastId')) || null;
       self.elements = JSON.parse(localStorage.getItem('elements')) || [];
-    };
-
-    const setToken = function(token) {
-      self.token = token;
-      localStorage.setItem('token', token);
-      refreshToken();
     };
 
     const setLastId = function(lastId) {
@@ -264,10 +226,6 @@ jQuery(document).ready(function($) {
     };
 
     // ------------------- View -------------------
-    const refreshToken = function() {
-      $('#token').text(self.token);
-    };
-
     const refreshLastId = function() {
       $('#last-id').text(self.lastId);
     };
@@ -280,70 +238,10 @@ jQuery(document).ready(function($) {
     constructor(cache);
   }
 
-  function LastIdSync(data, externalData) {
-    const self = this;
-
-    const constructor = function(data, externalData) {
-      self.data = data;
-      self.externalData = externalData;
-    };
-
-    // ------------------- Methods -------------------
-    this.synchronizeLastId = function(done) {
-      setLastIdStatus('Synchronizing', 'glyphicon glyphicon-transfer text-muted');
-      self.externalData.readValue(self.data.token, function(externalLastId) {
-        handleExternalLastIdGot(externalLastId, done);
-      }, function() {
-        handleExternalLastIdGetFailed(done);
-      });
-    };
-
-    const handleExternalLastIdGot = function(externalLastId, done) {
-      if (externalLastId > self.data.lastId) {
-        self.data.updateLastId(externalLastId);
-        setLastIdStatus('Newer lastId downloaded', 'glyphicon glyphicon-download text-success');
-        done();
-      } else if (externalLastId === self.data.lastId) {
-        setLastIdStatus('lastId up to date', 'glyphicon glyphicon-ok text-success');
-        done();
-      } else {
-        self.externalData.saveValue(self.data.token, self.data.lastId, function() {
-          handleExternalLastIdSaved(done);
-        }, function() {
-          handleExternalLastIdSaveFailed(done);
-        });
-      }
-    };
-
-    const handleExternalLastIdSaved = function(done) {
-      setLastIdStatus('Saved newer lastId', 'glyphicon glyphicon-floppy-saved text-success');
-      done();
-    };
-
-    const handleExternalLastIdSaveFailed = function(done) {
-      setLastIdStatus('Unable to save newer lastId', 'glyphicon glyphicon-floppy-remove text-danger');
-      done();
-    };
-
-    const handleExternalLastIdGetFailed = function(done) {
-      setLastIdStatus('Unable to load lastId', 'glyphicon glyphicon-download text-danger');
-      done();
-    };
-
-    //------------------- View -------------------
-    const setLastIdStatus = function(status, glyphClass) {
-      $('#last-id-status').removeClass().addClass(glyphClass).prop('title', status);
-    };
-
-    //------------------- Constructor -------------------
-    constructor(data, externalData);
-  }
-
   function Scraper(data) {
     const self = this;
 
-    const CORS_URL = 'https://cors.io/?';
-    const CORS_URL_2 = 'https://api.codetabs.com/v1/proxy?quest=';
+    const CORS_URL = 'https://api.codetabs.com/v1/proxy?quest=';
     const API_URL = 'https://joemonster.org/szaffa/najnowsze_fotki/strona/';
     const ELEM_REGEX = /href='\/p\/([0-9]+)\/[\s\S]*?\/upload\/(.*?)\/s_(.*?)'/g;
     const IMG_SRC_URL = "https://vader.joemonster.org/upload/";
@@ -395,15 +293,9 @@ jQuery(document).ready(function($) {
         success(extractElements(html));
       };
 
-      const fallback = function() {
-        $.get(CORS_URL_2 + API_URL + page)
-          .done(accept)
-          .fail(failure);
-      };
-
       $.get(CORS_URL + API_URL + page)
         .done(accept)
-        .fail(fallback);
+        .fail(failure);
     };
 
     const extractElements = function(html) {
@@ -434,15 +326,14 @@ jQuery(document).ready(function($) {
     constructor(data);
   }
 
-  function Images(data, lastIdSync) {
+  function Images(data) {
     const self = this;
 
     const FETCH_SIZE = 25;
     const IMG_URL = 'http://www.joemonster.org/szaffa/';
 
-    const constructor = function(data, lastIdSync) {
+    const constructor = function(data) {
       self.data = data;
-      self.lastIdSync = lastIdSync;
 
       self.displayedElements = [];
 
@@ -470,8 +361,6 @@ jQuery(document).ready(function($) {
       if (self.displayedElements.length > 0) {
         self.data.removeElements(self.displayedElements);
         self.displayedElements = [];
-        self.lastIdSync.synchronizeLastId(function() {
-        });
       }
     };
 
@@ -511,16 +400,15 @@ jQuery(document).ready(function($) {
     };
 
     //------------------- Constructor -------------------
-    constructor(data, lastIdSync);
+    constructor(data);
   }
 
-  function App(data, cache, lastIdSync, scraper, images) {
+  function App(data, cache, scraper, images) {
     const self = this;
 
-    const constructor = function(data, cache, lastIdSync, scraper, images) {
+    const constructor = function(data, cache, scraper, images) {
       self.data = data;
       self.cache = cache;
-      self.lastIdSync = lastIdSync;
       self.scraper = scraper;
       self.images = images;
       self.loading = false;
@@ -530,17 +418,12 @@ jQuery(document).ready(function($) {
     this.start = function() {
       if (self.data.isLoaded() && !self.loading) {
         self.loading = true;
-        setStatusBusy('Synchronizing lastId');
-        self.lastIdSync.synchronizeLastId(lastIdUpdated);
+        setStatusBusy('Scrapping images');
+        self.scraper.scrapNewElements(scrappingFinished);
       }
     };
 
     // ------------------- Internal -------------------
-    const lastIdUpdated = function() {
-      setStatusBusy('Scrapping images');
-      self.scraper.scrapNewElements(scrappingFinished);
-    };
-
     const scrappingFinished = function() {
       setStatusFinished('Loaded');
       self.cache.initPrecaching(self.data.getElementUrls());
@@ -567,15 +450,14 @@ jQuery(document).ready(function($) {
     };
 
     //------------------- Constructor -------------------
-    constructor(data, cache, lastIdSync, scraper, images);
+    constructor(data, cache, scraper, images);
   }
 
-  function SettingsView(data, externalData, scraper, app, cache) {
+  function SettingsView(data, scraper, app, cache) {
     const self = this;
 
-    const constructor = function(data, externalData, scraper, app, cache) {
+    const constructor = function(data, scraper, app, cache) {
       self.data = data;
-      self.externalData = externalData;
       self.scraper = scraper;
       self.app = app;
       self.cache = cache;
@@ -584,7 +466,6 @@ jQuery(document).ready(function($) {
 
       $('#save-settings').on('click', saveSettings);
       $('#settings-panel').on('shown.bs.collapse', setupSettings);
-      $('#regenerate-token').on('click', regenerateToken);
       $('#regenerate-last-id').on('click', regenerateLastId);
       $('#cache-clear').on('click', self.cache.clearDataCache);
     };
@@ -596,24 +477,12 @@ jQuery(document).ready(function($) {
     };
 
     const applySettings = function() {
-      self.data.setup($('#token-input').val(), $('#last-id-input').val());
+      self.data.setup($('#last-id-input').val());
     };
 
     const setupSettings = function() {
       setupInputs();
-      markRegenerationReady('#regenerate-token', '#regenerate-token-status');
       markRegenerationReady('#regenerate-last-id', '#regenerate-last-id-status');
-    };
-
-    const regenerateToken = function() {
-      markRegenerationStart('#regenerate-token', '#regenerate-token-status');
-
-      self.externalData.generateToken(function(token) {
-        $('#token-input').val(token);
-        markRegenerationSuccess('#regenerate-token', '#regenerate-token-status');
-      }, function() {
-        markRegenerationFailure('#regenerate-token', '#regenerate-token-status');
-      });
     };
 
     const regenerateLastId = function() {
@@ -649,22 +518,19 @@ jQuery(document).ready(function($) {
     };
 
     const setupInputs = function() {
-      $('#token-input').val(self.data.token);
       $('#last-id-input').val(self.data.lastId);
     };
 
     //------------------- Constructor -------------------
-    constructor(data, externalData, scraper, app, cache);
+    constructor(data, scraper, app, cache);
   }
 
   const cache = new Cache();
-  const externalData = new ExternalData();
   const data = new Data(cache);
-  const lastIdSync = new LastIdSync(data, externalData);
   const scraper = new Scraper(data);
-  const images = new Images(data, lastIdSync);
-  const app = new App(data, cache, lastIdSync, scraper, images);
-  const settingsView = new SettingsView(data, externalData, scraper, app, cache);
+  const images = new Images(data);
+  const app = new App(data, cache, scraper, images);
+  const settingsView = new SettingsView(data, scraper, app, cache);
 
   navigator.serviceWorker
     .register('./service-worker.js')

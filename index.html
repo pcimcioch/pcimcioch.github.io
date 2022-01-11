@@ -15,8 +15,6 @@
     <link rel="stylesheet" href="styles/bootstrap.css">
     <link rel="stylesheet" href="styles/bootstrap-theme.css">
     <link rel="stylesheet" href="styles/style.css">
-
-    <!--<link rel="manifest" href="/manifest.json">-->
 </head>
 <body>
 
@@ -29,14 +27,8 @@
                     <table class="table table-condensed">
                         <tbody>
                             <tr>
-                                <th class="col-md-5">Token</th>
-                                <td id="token" class="col-md-5">Unknown</td>
-                                <td class="col-md-2"></td>
-                            </tr>
-                            <tr>
                                 <th>Last Id</th>
                                 <td id="last-id">Unknown</td>
-                                <td><span id="last-id-status" class="glyphicon glyphicon-time text-muted" title="Waiting to synchronize"></span></td>
                             </tr>
                             <tr>
                                 <th>New images</th>
@@ -73,31 +65,17 @@
                 </div>
                 <div class=" panel-collapse collapse" id="settings-panel">
                     <div class="panel-body">
-                        <!-- Token input -->
-                        <div class="form-group">
-                            <label for="token-input">Token</label>
-                            <div class="input-group">
-                                <input class="form-control" id="token-input">
-                                <span class="input-group-btn">
-                                <button class="btn btn-warning" id="regenerate-token">
-                                    <span id="regenerate-token-status" class="glyphicon glyphicon-refresh"></span>
-                                    Regenerate
-                                </button>
-                            </span>
-                            </div>
-                        </div>
-
                         <!-- Last Id input -->
                         <div class="form-group">
                             <label for="last-id-input">Last Id</label>
                             <div class="input-group">
                                 <input class="form-control" id="last-id-input">
                                 <span class="input-group-btn">
-                                <button class="btn btn-warning" id="regenerate-last-id">
-                                    <span id="regenerate-last-id-status" class="glyphicon glyphicon-refresh"></span>
-                                    Get Latest
-                                </button>
-                            </span>
+                                    <button class="btn btn-warning" id="regenerate-last-id">
+                                        <span id="regenerate-last-id-status" class="glyphicon glyphicon-refresh"></span>
+                                        Get Latest
+                                    </button>
+                                </span>
                             </div>
                         </div>
                         <button class="btn btn-block btn-sm btn-primary form-control" id="save-settings">Save</button>
