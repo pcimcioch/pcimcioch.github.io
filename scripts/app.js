@@ -241,7 +241,7 @@ jQuery(document).ready(function($) {
   function Scraper(data) {
     const self = this;
 
-    const CORS_URL = 'https://api.codetabs.com/v1/tmp/?quest=';
+    const CORS_URL = 'https://corsproxy.io/?';
     const API_URL = 'https://joemonster.org/szaffa/najnowsze_fotki/strona/';
     const ELEM_REGEX = /href='\/p\/([0-9]+)\/[\s\S]*?\/upload\/(.*?)\/s_(.*?)'/g;
     const IMG_SRC_URL = "https://vader.joemonster.org/upload/";
@@ -293,7 +293,7 @@ jQuery(document).ready(function($) {
         success(extractElements(html));
       };
 
-      $.get(CORS_URL + API_URL + page)
+      $.get(CORS_URL + encodeURIComponent(API_URL + page))
         .done(accept)
         .fail(failure);
     };
