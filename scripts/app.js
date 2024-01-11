@@ -241,8 +241,8 @@ jQuery(document).ready(function($) {
   function Scraper(data) {
     const self = this;
 
-    const CORS_URL = 'https://api.allorigins.win/raw?url=';
-    const API_URL = 'https://joemonster.org/szaffa/najnowsze_fotki/strona/';
+    const CORS_URL = 'https://corsproxy.io/?';
+    const API_URL = 'https://m.joemonster.org/szaffa/najnowsze_fotki/strona/';
     const ELEM_REGEX = /href='\/p\/([0-9]+)\/[\s\S]*?\/upload\/(.*?)\/s_(.*?)'/g;
     const IMG_SRC_URL = "https://vader.joemonster.org/upload/";
 
